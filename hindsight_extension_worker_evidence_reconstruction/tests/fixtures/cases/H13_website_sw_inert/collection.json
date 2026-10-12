@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "profile_key": "host01/user01/chrome/default",
+  "integrity_seed": "5e1da7b2c3d4e5f60718293a4b5c6d7e8f9a7b2c3d4e5f60718293a4b5c6d7e8f9",
+  "snapshots": [
+    {
+      "id": "s0",
+      "captured_at": "2026-08-01T10:00:00Z",
+      "path": "snapshots/s0/Default",
+      "complete_artifacts": [
+        "extension_inventory",
+        "extension_disk",
+        "service_worker",
+        "script_cache"
+      ]
+    },
+    {
+      "id": "s1",
+      "captured_at": "2026-08-03T10:00:00Z",
+      "path": "snapshots/s1/Default",
+      "complete_artifacts": [
+        "extension_inventory",
+        "service_worker",
+        "script_cache"
+      ]
+    },
+    {
+      "id": "s2",
+      "captured_at": "2026-08-05T10:00:00Z",
+      "path": "snapshots/s2/Default",
+      "complete_artifacts": [
+        "extension_inventory",
+        "service_worker",
+        "script_cache"
+      ]
+    }
+  ]
+}

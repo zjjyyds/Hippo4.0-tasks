@@ -1,0 +1,1 @@
+{"manifest_version": 3, "name": "Snapshot Probe", "version": "1.0.0", "background": {"service_worker": "background.js"}}

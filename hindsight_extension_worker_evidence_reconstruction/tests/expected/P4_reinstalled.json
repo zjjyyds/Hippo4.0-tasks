@@ -1,0 +1,21 @@
+{
+  "consistency": "consistent",
+  "extension_id": "abcdefghijklmnopabcdefghijklmnop",
+  "revisions": [
+    "AAA",
+    "BBB"
+  ],
+  "state": "REINSTALLED",
+  "transitions": [
+    [
+      "EXTENSION_REMOVED",
+      "s0",
+      "s1"
+    ],
+    [
+      "EXTENSION_REAPPEARED",
+      "s1",
+      "s2"
+    ]
+  ]
+}

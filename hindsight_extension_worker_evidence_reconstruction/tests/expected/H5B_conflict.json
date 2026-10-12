@@ -1,0 +1,11 @@
+{
+  "consistency": "consistent",
+  "extension_id": "bcdefghijklmnopabcdefghijklmnopa",
+  "state": "INDETERMINATE",
+  "uncertainty": [
+    [
+      "s0",
+      "conflicting_evidence"
+    ]
+  ]
+}

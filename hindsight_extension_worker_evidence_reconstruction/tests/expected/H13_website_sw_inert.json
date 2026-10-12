@@ -1,0 +1,11 @@
+{
+  "entity_ids": [
+    "abcdefghijklmnopabcdefghijklmnop"
+  ],
+  "extension_id": "abcdefghijklmnopabcdefghijklmnop",
+  "revisions": [
+    "AAA"
+  ],
+  "state": "RESIDUAL_RUNTIME",
+  "transition_count": 1
+}

@@ -1,0 +1,777 @@
+diff --git a/src/binwalk.rs b/src/binwalk.rs
+index 1c02eb8..300de65 100644
+--- a/src/binwalk.rs
++++ b/src/binwalk.rs
+@@ -43,6 +43,9 @@ pub struct AnalysisResults {
+     /// File extraction results, as returned by Binwalk::extract.
+     /// HashMap key is the corresponding SignatureResult.id value in `file_map`.
+     pub extractions: HashMap<String, extractors::common::ExtractionResult>,
++    /// Derived data stream analysis results (opt-in)
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub derived: Vec<crate::derived::DerivedResult>,
+ }
+ 
+ /// Analyze files / memory for file signatures
+@@ -81,6 +84,8 @@ pub struct Binwalk {
+     pub pattern_signature_table: HashMap<usize, signatures::common::Signature>,
+     /// Maps signatures to their corresponding extractors
+     pub extractor_lookup_table: HashMap<String, Option<extractors::common::Extractor>>,
++    /// Whether to perform derived data stream analysis
++    pub derived_streams: bool,
+ }
+ 
+ impl Binwalk {
+@@ -98,6 +103,13 @@ impl Binwalk {
+     pub fn new() -> Binwalk {
+         Binwalk::configure(None, None, None, None, None, false).unwrap()
+     }
++    /// Enable or disable derived stream scanning
++    #[allow(dead_code)]
++    pub fn enable_derived_streams(&mut self, enable: bool) -> &mut Self {
++        self.derived_streams = enable;
++        self
++    }
++
+ 
+     /// Create a new Binwalk instance.
+     ///
+@@ -732,6 +744,11 @@ impl Binwalk {
+         // Scan file data for signatures
+         debug!("Analysis start: {file_path}");
+         results.file_map = self.scan(file_data);
++        // Scan for derived streams if enabled
++        if self.derived_streams {
++            results.derived = self.scan_derived(file_data);
++        }
++
+ 
+         // Only extract if told to, and if there were some signatures found in this file
+         if do_extraction && !results.file_map.is_empty() {
+@@ -747,6 +764,44 @@ impl Binwalk {
+ 
+         results
+     }
++    /// Scans for supported BMP carriers, reassembles DBSF v2 streams,
++    /// and recursively analyzes payloads.
++    pub fn scan_derived(&self, file_data: &[u8]) -> Vec<crate::derived::DerivedResult> {
++        self.scan_derived_depth(file_data, 1)
++    }
++
++    fn scan_derived_depth(&self, file_data: &[u8], depth: usize) -> Vec<crate::derived::DerivedResult> {
++        const MAX_RECURSION_DEPTH: usize = 3;
++        if depth > MAX_RECURSION_DEPTH {
++            return Vec::new();
++        }
++
++        let mut derived_results = Vec::new();
++        let carriers = crate::derived::bmp::find_supported_bmp_carriers(file_data);
++
++        let fragments = crate::derived::bmp::extract_dbsf_fragments(&carriers, file_data);
++        let reassembled = crate::derived::bmp::reassemble_streams(fragments);
++
++        for stream in reassembled {
++            // Scan recovered payload with Binwalk's signature analysis engine
++            let child_file_map = self.scan(&stream.payload);
++
++            // Recursively analyze nested derived streams in this payload
++            let nested_derived = self.scan_derived_depth(&stream.payload, depth + 1);
++
++            derived_results.push(crate::derived::DerivedResult {
++                kind: "bmp-fragmented-stream".to_string(),
++                stream_id: stream.stream_id,
++                carrier_offsets: stream.carrier_offsets,
++                total_payload_size: stream.payload.len(),
++                payload: stream.payload,
++                file_map: child_file_map,
++                nested_derived,
++            });
++        }
++
++        derived_results
++    }
+ 
+     /// Analyze a file on disk and optionally extract its contents.
+     ///
+diff --git a/src/derived/bmp.rs b/src/derived/bmp.rs
+new file mode 100644
+index 0000000..9be35ad
+--- /dev/null
++++ b/src/derived/bmp.rs
+@@ -0,0 +1,622 @@
++//! DBSF v2 fragmented stream extraction from uncompressed Windows BMP carriers.
++//!
++//! Extraction operates over the *logical DBSF bitstream*: the transparent, unaligned
++//! concatenation of every qualified carrier's sampled bits, ordered by ascending physical
++//! carrier offset. Frames — their preambles included — may span carrier boundaries at any
++//! sub-byte bit phase, so all bit access goes through a global cursor rather than
++//! per-carrier byte indices.
++
++use std::collections::HashMap;
++use crate::common::crc32;
++use crate::structures::bmp::parse_bmp_file_header;
++
++/// Minimum DBSF v2 core header size in bytes (preamble included)
++pub const DBSF_V2_MIN_HEADER_SIZE: usize = 44;
++/// Magic bytes for DBSF v2 (binary, non-textual)
++pub const DBSF_V2_MAGIC: &[u8; 8] = &[0xB6, 0x5A, 0xE3, 0x81, 0x0C, 0xF4, 0x29, 0xD8];
++/// Maximum allowed total payload size (16 MiB)
++pub const MAX_PAYLOAD_SIZE: usize = 16 * 1024 * 1024;
++/// 64-bit synchronization preamble word
++pub const PREAMBLE_U64: u64 = u64::from_be_bytes(*DBSF_V2_MAGIC);
++
++/// Represents a validated BMP carrier candidate
++#[allow(dead_code)]
++#[derive(Debug, Clone)]
++pub struct BmpCarrierInfo {
++    pub offset: usize,
++    pub size: usize,
++    pub width: usize,
++    pub height: usize,
++    pub bpp: usize,
++    pub bytes_per_pixel: usize,
++    pub row_stride: usize,
++    pub top_down: bool,
++    pub pixel_array_offset: usize,
++    pub capacity_bytes: usize,
++    pub b_shift: u32,
++    pub g_shift: u32,
++    pub r_shift: u32,
++    /// Sampled bits contributed by this carrier to the logical bitstream (width * height * 3)
++    pub bit_count: usize,
++}
++
++/// Discovers and validates all supported BMP carriers in the binary data.
++///
++/// Discovery is greedy and non-overlapping: an accepted carrier consumes its entire
++/// declared byte extent, and candidate `BM` signatures inside a consumed extent are
++/// never re-examined.
++pub fn find_supported_bmp_carriers(file_data: &[u8]) -> Vec<BmpCarrierInfo> {
++    let mut carriers = Vec::new();
++    if file_data.len() < 54 {
++        return carriers;
++    }
++
++    let mut i = 0;
++    while i + 54 <= file_data.len() {
++        if file_data[i] == b'B' && file_data[i + 1] == b'M' {
++            if let Some(info) = parse_bmp_carrier(&file_data[i..], i) {
++                let carrier_size = info.size;
++                carriers.push(info);
++                i += carrier_size.max(1);
++                continue;
++            }
++        }
++        i += 1;
++    }
++
++    carriers
++}
++
++/// Validates BMP header and DIB fields according to DBSF carrier requirements
++fn parse_bmp_carrier(bmp_data: &[u8], carrier_offset: usize) -> Option<BmpCarrierInfo> {
++    let file_header = parse_bmp_file_header(bmp_data).ok()?;
++    let total_size = file_header.size;
++    let pixel_offset = file_header.bitmap_bits_offset;
++
++    if total_size < 54 || total_size > bmp_data.len() {
++        return None;
++    }
++    if pixel_offset < 54 || pixel_offset > total_size {
++        return None;
++    }
++
++    if bmp_data.len() < 14 + 40 {
++        return None;
++    }
++    let dib = &bmp_data[14..];
++    let bi_size = u32::from_le_bytes(dib[0..4].try_into().ok()?) as usize;
++    if bi_size < 40 || 14 + bi_size > pixel_offset {
++        return None;
++    }
++
++    let bi_width = i32::from_le_bytes(dib[4..8].try_into().ok()?);
++    let bi_height = i32::from_le_bytes(dib[8..12].try_into().ok()?);
++    let bi_planes = u16::from_le_bytes(dib[12..14].try_into().ok()?);
++    let bi_bit_count = u16::from_le_bytes(dib[14..16].try_into().ok()?) as usize;
++    let bi_compression = u32::from_le_bytes(dib[16..20].try_into().ok()?);
++
++    if bi_planes != 1 {
++        return None;
++    }
++    let is_valid_compression = match (bi_bit_count, bi_compression) {
++        (16, 0) | (16, 3) => true,
++        (24, 0) | (32, 0) => true,
++        _ => false,
++    };
++    if !is_valid_compression {
++        return None;
++    }
++    if bi_width <= 0 || bi_height == 0 || bi_height == i32::MIN {
++        return None;
++    }
++
++    let width = bi_width as usize;
++    let height = bi_height.unsigned_abs() as usize;
++    let top_down = bi_height < 0;
++    let bytes_per_pixel = bi_bit_count / 8;
++
++    let row_stride = (width.checked_mul(bi_bit_count)?)
++        .checked_add(31)?
++        .checked_div(32)?
++        .checked_mul(4)?;
++
++    let total_pixel_bytes = height.checked_mul(row_stride)?;
++    let required_total_bytes = pixel_offset.checked_add(total_pixel_bytes)?;
++    if required_total_bytes > total_size {
++        return None;
++    }
++
++    let total_pixels = width.checked_mul(height)?;
++    let capacity_bits = total_pixels.checked_mul(3)?;
++    let capacity_bytes = capacity_bits / 8;
++
++    let (r_shift, g_shift, b_shift) = if bi_bit_count == 16 && bi_compression == 3 {
++        let mask_offset = if bi_size >= 52 {
++            14 + 40
++        } else {
++            14 + bi_size
++        };
++        let r_mask = u32::from_le_bytes(bmp_data.get(mask_offset..mask_offset + 4)?.try_into().ok()?);
++        let g_mask = u32::from_le_bytes(bmp_data.get(mask_offset + 4..mask_offset + 8)?.try_into().ok()?);
++        let b_mask = u32::from_le_bytes(bmp_data.get(mask_offset + 8..mask_offset + 12)?.try_into().ok()?);
++        if r_mask == 0 || g_mask == 0 || b_mask == 0 {
++            return None;
++        }
++        (r_mask.trailing_zeros(), g_mask.trailing_zeros(), b_mask.trailing_zeros())
++    } else if bi_bit_count == 16 {
++        (10, 5, 0)
++    } else {
++        (0, 0, 0)
++    };
++
++    Some(BmpCarrierInfo {
++        offset: carrier_offset,
++        size: total_size,
++        width,
++        height,
++        bpp: bi_bit_count,
++        bytes_per_pixel,
++        row_stride,
++        top_down,
++        pixel_array_offset: pixel_offset,
++        capacity_bytes,
++        b_shift,
++        g_shift,
++        r_shift,
++        bit_count: capacity_bits,
++    })
++}
++
++/// Sequential sampler over one carrier's display-order bits (B,G,R LSB per pixel),
++/// optionally starting at an arbitrary bit offset within the carrier's bit sequence.
++struct DbsfBitIterator<'a> {
++    pixel_data: &'a [u8],
++    width: usize,
++    height: usize,
++    bpp: usize,
++    bytes_per_pixel: usize,
++    row_stride: usize,
++    top_down: bool,
++    b_shift: u32,
++    g_shift: u32,
++    r_shift: u32,
++    curr_y: usize,
++    curr_x: usize,
++    curr_channel: usize,
++}
++
++impl<'a> DbsfBitIterator<'a> {
++    fn new(info: &BmpCarrierInfo, bmp_slice: &'a [u8]) -> Self {
++        Self::new_at(info, bmp_slice, 0)
++    }
++
++    fn new_at(info: &BmpCarrierInfo, bmp_slice: &'a [u8], start_bit: usize) -> Self {
++        let pixel = start_bit / 3;
++        Self {
++            pixel_data: &bmp_slice[info.pixel_array_offset..],
++            width: info.width,
++            height: info.height,
++            bpp: info.bpp,
++            bytes_per_pixel: info.bytes_per_pixel,
++            row_stride: info.row_stride,
++            top_down: info.top_down,
++            b_shift: info.b_shift,
++            g_shift: info.g_shift,
++            r_shift: info.r_shift,
++            curr_y: pixel / info.width,
++            curr_x: pixel % info.width,
++            curr_channel: start_bit % 3,
++        }
++    }
++
++    fn next_bit(&mut self) -> Option<u8> {
++        if self.curr_y >= self.height {
++            return None;
++        }
++        let physical_row = if self.top_down {
++            self.curr_y
++        } else {
++            self.height - 1 - self.curr_y
++        };
++
++        let px_offset = physical_row * self.row_stride + self.curr_x * self.bytes_per_pixel;
++        let bit = if self.bpp == 16 {
++            let px_bytes: [u8; 2] = [
++                *self.pixel_data.get(px_offset)?,
++                *self.pixel_data.get(px_offset + 1)?,
++            ];
++            let px = u16::from_le_bytes(px_bytes);
++            match self.curr_channel {
++                0 => ((px >> self.b_shift) & 1) as u8,
++                1 => ((px >> self.g_shift) & 1) as u8,
++                2 => ((px >> self.r_shift) & 1) as u8,
++                _ => 0,
++            }
++        } else {
++            let channel_byte = *self.pixel_data.get(px_offset + self.curr_channel)?;
++            channel_byte & 1
++        };
++
++        self.curr_channel += 1;
++        if self.curr_channel == 3 {
++            self.curr_channel = 0;
++            self.curr_x += 1;
++            if self.curr_x == self.width {
++                self.curr_x = 0;
++                self.curr_y += 1;
++            }
++        }
++
++        Some(bit)
++    }
++}
++
++/// Global sequential reader over the logical DBSF bitstream: the transparent, unaligned
++/// concatenation of all qualified carriers' sampled bits in ascending physical order.
++struct LogicalBitReader<'a> {
++    carriers: &'a [BmpCarrierInfo],
++    file_data: &'a [u8],
++    cur: usize,
++    iter: Option<DbsfBitIterator<'a>>,
++    start_bit: usize,
++    consumed: usize,
++}
++
++impl<'a> LogicalBitReader<'a> {
++    fn new(carriers: &'a [BmpCarrierInfo], file_data: &'a [u8], prefix: &[usize], start_bit: usize) -> Option<Self> {
++        if start_bit >= *prefix.last()? {
++            return None;
++        }
++        // Locate the carrier whose bit range contains start_bit
++        let cur = prefix.partition_point(|&p| p <= start_bit).checked_sub(1)?;
++        let carrier = carriers.get(cur)?;
++        let slice = file_data.get(carrier.offset..carrier.offset + carrier.size)?;
++        let iter = DbsfBitIterator::new_at(carrier, slice, start_bit - prefix[cur]);
++        Some(Self {
++            carriers,
++            file_data,
++            cur,
++            iter: Some(iter),
++            start_bit,
++            consumed: 0,
++        })
++    }
++
++    fn next_bit(&mut self) -> Option<u8> {
++        loop {
++            if let Some(bit) = self.iter.as_mut().and_then(|it| it.next_bit()) {
++                self.consumed += 1;
++                return Some(bit);
++            }
++            self.cur += 1;
++            let carrier = self.carriers.get(self.cur)?;
++            let slice = self.file_data.get(carrier.offset..carrier.offset + carrier.size)?;
++            self.iter = Some(DbsfBitIterator::new(carrier, slice));
++        }
++    }
++
++    fn read_byte(&mut self) -> Option<u8> {
++        let mut byte = 0u8;
++        for _ in 0..8 {
++            byte = (byte << 1) | self.next_bit()?;
++        }
++        Some(byte)
++    }
++
++    fn read_bytes(&mut self, count: usize) -> Option<Vec<u8>> {
++        let mut bytes = Vec::with_capacity(count.min(8192));
++        for _ in 0..count {
++            bytes.push(self.read_byte()?);
++        }
++        Some(bytes)
++    }
++}
++
++/// Prefix sums of per-carrier sampled bit counts: prefix[i] = bits before carrier i
++fn carrier_prefix_bits(carriers: &[BmpCarrierInfo]) -> Vec<usize> {
++    let mut prefix = Vec::with_capacity(carriers.len() + 1);
++    let mut acc = 0usize;
++    prefix.push(0);
++    for c in carriers {
++        acc = acc.saturating_add(c.bit_count);
++        prefix.push(acc);
++    }
++    prefix
++}
++
++/// Carriers contributing at least one bit to the frame span [start_bit, end_bit)
++fn carriers_touching(prefix: &[usize], carriers: &[BmpCarrierInfo], start_bit: usize, end_bit: usize) -> Vec<usize> {
++    let mut offsets = Vec::new();
++    for (i, c) in carriers.iter().enumerate() {
++        let lo = prefix[i];
++        let hi = prefix[i + 1];
++        if hi > lo && hi > start_bit && lo < end_bit {
++            offsets.push(c.offset);
++        }
++    }
++    offsets
++}
++
++/// A parsed and verified DBSF v2 fragment. `carrier_offsets` lists every carrier that
++/// contributed at least one bit to this frame — preamble, header, or payload bits alike.
++#[allow(dead_code)]
++#[derive(Debug, Clone)]
++pub struct DbsfV2Fragment {
++    pub carrier_offsets: Vec<usize>,
++    pub stream_id: u32,
++    pub fragment_index: usize,
++    pub fragment_count: usize,
++    pub payload_offset: usize,
++    pub fragment_len: usize,
++    pub total_len: usize,
++    pub fragment_crc: u32,
++    pub total_crc: u32,
++    pub payload: Vec<u8>,
++}
++
++/// Attempts to parse and validate one candidate frame beginning at `start_bit` (the first
++/// bit of its preamble). Returns the fragment and the bit position immediately after the
++/// frame, or None if the candidate is malformed or truncated.
++fn try_parse_frame(
++    carriers: &[BmpCarrierInfo],
++    file_data: &[u8],
++    prefix: &[usize],
++    start_bit: usize,
++) -> Option<(DbsfV2Fragment, usize)> {
++    let mut reader = LogicalBitReader::new(carriers, file_data, prefix, start_bit)?;
++    let base_header = reader.read_bytes(DBSF_V2_MIN_HEADER_SIZE)?;
++
++    if &base_header[0..8] != DBSF_V2_MAGIC {
++        return None;
++    }
++    if base_header[36] != 2 || base_header[37] != 0 {
++        return None;
++    }
++    if u16::from_le_bytes(base_header[38..40].try_into().ok()?) != 0 {
++        return None;
++    }
++
++    let header_len = u32::from_le_bytes(base_header[40..44].try_into().ok()?) as usize;
++    if header_len < DBSF_V2_MIN_HEADER_SIZE {
++        return None;
++    }
++
++    let stream_id = u32::from_le_bytes(base_header[8..12].try_into().ok()?);
++    let fragment_count = u16::from_le_bytes(base_header[12..14].try_into().ok()?) as usize;
++    let fragment_index = u16::from_le_bytes(base_header[14..16].try_into().ok()?) as usize;
++    let fragment_len = u32::from_le_bytes(base_header[16..20].try_into().ok()?) as usize;
++    let payload_offset = u32::from_le_bytes(base_header[20..24].try_into().ok()?) as usize;
++    let total_len = u32::from_le_bytes(base_header[24..28].try_into().ok()?) as usize;
++    let total_crc = u32::from_le_bytes(base_header[28..32].try_into().ok()?);
++    let fragment_crc = u32::from_le_bytes(base_header[32..36].try_into().ok()?);
++
++    if fragment_count == 0 || fragment_index >= fragment_count {
++        return None;
++    }
++    if fragment_len == 0 || total_len == 0 {
++        return None;
++    }
++    let frag_end = payload_offset.checked_add(fragment_len)?;
++    if frag_end > total_len || total_len > MAX_PAYLOAD_SIZE {
++        return None;
++    }
++
++    // Parse TLV header extensions (bytes between the core region and header_len)
++    let mut xor_key: Option<Vec<u8>> = None;
++    if header_len > DBSF_V2_MIN_HEADER_SIZE {
++        let ext_bytes = reader.read_bytes(header_len - DBSF_V2_MIN_HEADER_SIZE)?;
++        let mut idx = 0;
++        while idx < ext_bytes.len() {
++            let tag = *ext_bytes.get(idx)?;
++            let len = *ext_bytes.get(idx + 1)? as usize;
++            idx += 2;
++            let val = ext_bytes.get(idx..idx + len)?;
++            idx += len;
++
++            match tag {
++                0x01 => {
++                    // Tag 0x01: Cyclic XOR key (1 <= len <= 16)
++                    if len == 0 || len > 16 {
++                        return None;
++                    }
++                    xor_key = Some(val.to_vec());
++                }
++                _ => {
++                    // Unrecognized critical tag (highest bit set) must cause rejection
++                    if (tag & 0x80) != 0 {
++                        return None;
++                    }
++                }
++            }
++        }
++    }
++
++    // Fragment payload, bounded by earlier validation (<= 16 MiB)
++    let mut payload = Vec::with_capacity(fragment_len);
++    for _ in 0..fragment_len {
++        payload.push(reader.read_byte()?);
++    }
++    if let Some(key) = &xor_key {
++        for (i, b) in payload.iter_mut().enumerate() {
++            *b ^= key[i % key.len()];
++        }
++    }
++
++    if crc32(&payload) != fragment_crc {
++        return None;
++    }
++
++    let end_bit = start_bit.checked_add((header_len + fragment_len).checked_mul(8)?)?;
++    let carrier_offsets = carriers_touching(prefix, carriers, start_bit, end_bit);
++
++    Some((
++        DbsfV2Fragment {
++            carrier_offsets,
++            stream_id,
++            fragment_index,
++            fragment_count,
++            payload_offset,
++            fragment_len,
++            total_len,
++            fragment_crc,
++            total_crc,
++            payload,
++        },
++        end_bit,
++    ))
++}
++
++/// Discovers and extracts all valid DBSF v2 fragments from the logical bitstream.
++///
++/// Synchronization uses a 64-bit rolling window across carrier boundaries. An accepted
++/// frame is an opaque unit: any preamble beginning within its bit span is payload data
++/// (containment). Rejected candidates consume nothing; scanning continues bit by bit.
++pub fn extract_dbsf_fragments(carriers: &[BmpCarrierInfo], file_data: &[u8]) -> Vec<DbsfV2Fragment> {
++    let mut fragments = Vec::new();
++
++    let prefix = carrier_prefix_bits(carriers);
++    let total_bits = *prefix.last().unwrap_or(&0);
++    if total_bits < 64 {
++        return fragments;
++    }
++
++    let mut stream = match LogicalBitReader::new(carriers, file_data, &prefix, 0) {
++        Some(s) => s,
++        None => return fragments,
++    };
++
++    let mut window: u64 = 0;
++    let mut resume_pos: usize = 0;
++    let mut global_pos: usize = 0;
++
++    while let Some(bit) = stream.next_bit() {
++        window = (window << 1) | (bit as u64);
++        global_pos += 1;
++        if global_pos >= 64 {
++            let match_start = global_pos - 64;
++            if window == PREAMBLE_U64 && match_start >= resume_pos {
++                if let Some((frag, end_bit)) = try_parse_frame(carriers, file_data, &prefix, match_start) {
++                    fragments.push(frag);
++                    resume_pos = end_bit;
++                }
++            }
++        }
++    }
++
++    fragments
++}
++
++/// A fully reassembled logical stream
++#[derive(Debug, Clone)]
++pub struct ReassembledStream {
++    pub stream_id: u32,
++    pub carrier_offsets: Vec<usize>,
++    pub payload: Vec<u8>,
++}
++
++/// Groups fragments by stream session association (stream_id, total_crc) and reassembles complete, validated streams with range checks
++pub fn reassemble_streams(fragments: Vec<DbsfV2Fragment>) -> Vec<ReassembledStream> {
++    // Group fragments by (stream_id, total_crc, fragment_count, total_len) session key to disambiguate stale/mixed asset revisions
++    let mut streams_by_key: HashMap<(u32, u32, usize, usize), Vec<DbsfV2Fragment>> = HashMap::new();
++    for frag in fragments {
++        streams_by_key
++            .entry((frag.stream_id, frag.total_crc, frag.fragment_count, frag.total_len))
++            .or_default()
++            .push(frag);
++    }
++
++    let mut valid_streams = Vec::new();
++
++    for ((stream_id, total_crc, expected_count, expected_total_len), mut frags) in streams_by_key {
++        if frags.is_empty() {
++            continue;
++        }
++        let expected_total_crc = frags[0].total_crc;
++        if total_crc != expected_total_crc {
++            continue;
++        }
++
++        // All fragments in this session must agree on metadata
++        if !frags.iter().all(|f| {
++            f.fragment_count == expected_count
++                && f.total_len == expected_total_len
++                && f.total_crc == expected_total_crc
++        }) {
++            continue;
++        }
++
++        // Exactly FragmentCount fragment instances: duplicate instances of the same
++        // fragment index (even byte-identical retransmissions) invalidate the session
++        if frags.len() != expected_count {
++            continue;
++        }
++
++        // Sort fragments by fragment_index
++        frags.sort_by_key(|f| f.fragment_index);
++
++        // Verify contiguous indices 0..expected_count with no duplicates
++        let mut indices_valid = true;
++        for (i, f) in frags.iter().enumerate() {
++            if f.fragment_index != i {
++                indices_valid = false;
++                break;
++            }
++        }
++        if !indices_valid {
++            continue;
++        }
++
++        // Range coverage check: every byte in 0..expected_total_len must be covered exactly once
++        let mut coverage = vec![false; expected_total_len];
++        let mut total_payload = vec![0u8; expected_total_len];
++        let mut range_valid = true;
++
++        for f in &frags {
++            let start = f.payload_offset;
++            let end = start + f.fragment_len;
++            if end > expected_total_len {
++                range_valid = false;
++                break;
++            }
++            for i in start..end {
++                if coverage[i] {
++                    // Overlap detected!
++                    range_valid = false;
++                    break;
++                }
++                coverage[i] = true;
++            }
++            if !range_valid {
++                break;
++            }
++            total_payload[start..end].copy_from_slice(&f.payload);
++        }
++
++        if !range_valid || coverage.iter().any(|&covered| !covered) {
++            // Overlap or gap detected!
++            continue;
++        }
++
++        // Verify total payload CRC32
++        if crc32(&total_payload) != expected_total_crc {
++            continue;
++        }
++
++        // Union of carrier contributions across all fragments, sorted and deduplicated
++        let mut carrier_offsets: Vec<usize> = frags
++            .iter()
++            .flat_map(|f| f.carrier_offsets.iter().copied())
++            .collect();
++        carrier_offsets.sort_unstable();
++        carrier_offsets.dedup();
++
++        valid_streams.push(ReassembledStream {
++            stream_id,
++            carrier_offsets,
++            payload: total_payload,
++        });
++    }
++
++    valid_streams.sort_by_key(|s| s.stream_id);
++    valid_streams
++}
+diff --git a/src/derived/mod.rs b/src/derived/mod.rs
+new file mode 100644
+index 0000000..fb801da
+--- /dev/null
++++ b/src/derived/mod.rs
+@@ -0,0 +1,26 @@
++//! Derived data stream analysis module.
++
++use crate::signatures::common::SignatureResult;
++use serde::{Deserialize, Serialize};
++
++pub mod bmp;
++
++/// Results of a derived stream analysis
++#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
++pub struct DerivedResult {
++    /// Type of carrier / derived extraction (e.g. "bmp-fragmented-stream")
++    pub kind: String,
++    /// Identifier of the logical stream
++    pub stream_id: u32,
++    /// Sorted list of physical byte offsets in the parent data for all contributing carriers
++    pub carrier_offsets: Vec<usize>,
++    /// Total size in bytes of the reassembled logical stream payload
++    pub total_payload_size: usize,
++    /// Complete recovered payload bytes, independently verified by the caller
++    pub payload: Vec<u8>,
++    /// Child file signatures identified inside the reassembled payload
++    pub file_map: Vec<SignatureResult>,
++    /// Recursive derived stream analysis results discovered inside this stream's payload
++    #[serde(default, skip_serializing_if = "Vec::is_empty")]
++    pub nested_derived: Vec<DerivedResult>,
++}
+diff --git a/src/lib.rs b/src/lib.rs
+index c5151dd..3e2e9fe 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -22,4 +22,6 @@ pub mod extractors;
+ mod magic;
+ pub mod signatures;
+ pub mod structures;
++pub mod derived;
+ pub use binwalk::{AnalysisResults, Binwalk, BinwalkError};
++pub use derived::DerivedResult;
+diff --git a/src/main.rs b/src/main.rs
+index 2f5f293..064e0c2 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -19,6 +19,7 @@ mod json;
+ mod magic;
+ mod signatures;
+ mod structures;
++mod derived;
+ 
+ fn main() -> ExitCode {
+     // File name used when reading from stdin

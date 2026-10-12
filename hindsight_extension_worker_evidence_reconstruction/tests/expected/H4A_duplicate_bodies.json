@@ -1,0 +1,15 @@
+{
+  "extension_id": "abcdefghijklmnopabcdefghijklmnop",
+  "revisions": [
+    "AAA"
+  ],
+  "revisions_count": 1,
+  "state": "RESIDUAL_RUNTIME",
+  "transitions": [
+    [
+      "EXTENSION_REMOVED",
+      "s0",
+      "s1"
+    ]
+  ]
+}

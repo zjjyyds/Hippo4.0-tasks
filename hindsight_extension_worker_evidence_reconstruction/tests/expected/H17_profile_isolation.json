@@ -1,0 +1,18 @@
+{
+  "profiles": {
+    "host01/user01/chrome/default": {
+      "extension_id": "abcdefghijklmnopabcdefghijklmnop",
+      "revisions": [
+        "AAA"
+      ],
+      "state": "RESIDUAL_RUNTIME"
+    },
+    "host02/user02/chrome/default": {
+      "extension_id": "cdefghijklmnopabcdefghijklmnopab",
+      "revisions": [
+        "AAA"
+      ],
+      "state": "ACTIVE"
+    }
+  }
+}

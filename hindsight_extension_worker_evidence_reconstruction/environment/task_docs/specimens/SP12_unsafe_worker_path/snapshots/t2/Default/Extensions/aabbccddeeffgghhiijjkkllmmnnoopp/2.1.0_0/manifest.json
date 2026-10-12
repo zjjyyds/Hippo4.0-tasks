@@ -1,0 +1,1 @@
+{"manifest_version": 3, "name": "Specimen Probe", "version": "2.1.0", "background": {"service_worker": "../../../ExtData/escaped.js"}}

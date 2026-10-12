@@ -1,0 +1,10 @@
+{
+  "extension_id": "abcdefghijklmnopabcdefghijklmnop",
+  "state": "INDETERMINATE",
+  "uncertainty": [
+    [
+      "s1",
+      "incomplete_acquisition"
+    ]
+  ]
+}

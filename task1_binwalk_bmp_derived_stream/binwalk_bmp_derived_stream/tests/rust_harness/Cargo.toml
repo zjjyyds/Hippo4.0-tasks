@@ -1,0 +1,10 @@
+[package]
+name = "rust_harness"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+binwalk = { path = "/workspace/binwalk" }
+clap = { version = "4.5.16", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

@@ -1,0 +1,26 @@
+version = "1.0"
+artifacts = ["/workspace/hindsight"]
+
+[task]
+name = "humanlaya/hindsight_extension_worker_evidence_reconstruction"
+description = "Reconstruct Chromium extension Service Worker state across multi-snapshot forensic collections."
+authors = [{ name = "humanlaya", email = "noreply@example.com" }]
+keywords = ["forensics", "dfir", "chromium", "browser-extensions", "service-worker", "python"]
+
+[metadata]
+name = "hindsight_extension_worker_evidence_reconstruction"
+author_name = "humanlaya"
+author_email = "noreply@example.com"
+category = "security"
+difficulty = "hard"
+tags = ["forensics", "dfir", "chromium", "browser-extensions", "service-worker", "python"]
+
+[verifier]
+timeout_sec = 600.0
+environment_mode = "separate"
+
+[agent]
+timeout_sec = 7200.0
+
+[environment]
+build_timeout_sec = 600.0

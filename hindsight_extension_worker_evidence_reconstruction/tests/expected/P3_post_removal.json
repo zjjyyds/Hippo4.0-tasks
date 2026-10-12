@@ -1,0 +1,16 @@
+{
+  "consistency": "unknown",
+  "extension_id": "abcdefghijklmnopabcdefghijklmnop",
+  "revisions": [
+    "AAA",
+    "BBB"
+  ],
+  "state": "POST_REMOVAL_CHANGE",
+  "transitions": [
+    [
+      "EXTENSION_REMOVED",
+      "s0",
+      "s1"
+    ]
+  ]
+}

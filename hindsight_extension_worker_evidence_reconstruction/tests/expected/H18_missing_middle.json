@@ -1,0 +1,19 @@
+{
+  "extension_id": "abcdefghijklmnopabcdefghijklmnop",
+  "revisions": [
+    "AAA",
+    "BBB"
+  ],
+  "state": "RESIDUAL_RUNTIME",
+  "transition_snapshots": [
+    "s0",
+    "s2"
+  ],
+  "transitions": [
+    [
+      "EXTENSION_REMOVED",
+      "s0",
+      "s2"
+    ]
+  ]
+}

@@ -1,0 +1,648 @@
+diff --git a/hindsight.py b/hindsight.py
+index d9c5d99..f000007 100755
+--- a/hindsight.py
++++ b/hindsight.py
+@@ -96,6 +96,10 @@ The Chrome Profile folder default locations are:
+                              'directory location for Chrome is <userdir>/Library/Caches/Google/Chrome/Default/Cache/')
+     parser.add_argument('--nocopy', '--no_copy', help='Don\'t copy files before opening them; this might run faster, '
+                                                       'but some locked files may be inaccessible', action='store_true')
++    parser.add_argument('--extension-worker-report', dest='extension_worker_report', default=None,
++                        help='Reconstruct extension Service Worker state across a forensic '
++                             'collection (collection root via -i) and write the JSON report '
++                             'to this path')
+     parser.add_argument('--temp_dir', default=os.path.join(get_base_dir(), 'hindsight-temp'),
+                         help='If files are copied before being opened, use this directory as the copy destination')
+ 
+@@ -206,6 +210,12 @@ def main():
+                         datefmt='%Y-%m-%d %H:%M:%S')
+     log = logging.getLogger(__name__)
+ 
++    # Cross-snapshot extension Service Worker reconstruction (opt-in)
++    if getattr(args, 'extension_worker_report', None):
++        from pyhindsight.extension_worker_reconstruction import run as run_ewr
++        run_ewr(args.input, args.extension_worker_report)
++        return
++
+     # Hindsight version info
+     log.info(
+         '\n' + '#' * 80 +
+diff --git a/pyhindsight/extension_worker_reconstruction.py b/pyhindsight/extension_worker_reconstruction.py
+new file mode 100644
+index 0000000..7739555
+--- /dev/null
++++ b/pyhindsight/extension_worker_reconstruction.py
+@@ -0,0 +1,614 @@
++"""Cross-snapshot Chromium extension Service Worker evidence reconstruction.
++
++Implements the forensic evidence semantics documented in the collection/report
++specification (task_docs/extension-worker-state.md):
++
++  - three-valued presence (present / absent / unknown), where a missing record
++    only counts as confirmed absence when the responsible artifact class was
++    completely acquired and parsed;
++  - removal boundaries only between adjacent snapshots with confirmed presence
++    followed by confirmed absence;
++  - script revision identity by SHA-256 of the body, deduplicated;
++  - first observation reported as an observation boundary, never as creation;
++  - reinstall precedence over revision-based readings;
++  - on-disk worker correlation with traversal-safe path resolution;
++  - downgrade to INDETERMINATE whenever the evidence cannot support a state,
++    with provenance and uncertainty preserved.
++
++This module reuses Hindsight's existing Chromium parsers (Chrome class) for all
++artifact reading; it introduces no new browser-profile parsing.
++"""
++
++import hashlib
++import json
++import logging
++import os
++import re
++
++from pyhindsight.browsers.chrome import Chrome
++
++log = logging.getLogger(__name__)
++
++PRESENT = "present"
++ABSENT = "absent"
++UNKNOWN = "unknown"
++
++ACTIVE = "ACTIVE"
++RESIDUAL_RUNTIME = "RESIDUAL_RUNTIME"
++POST_REMOVAL_CHANGE = "POST_REMOVAL_CHANGE"
++REINSTALLED = "REINSTALLED"
++INDETERMINATE = "INDETERMINATE"
++
++EXTENSION_REMOVED = "EXTENSION_REMOVED"
++EXTENSION_REAPPEARED = "EXTENSION_REAPPEARED"
++
++INCOMPLETE_ACQUISITION = "incomplete_acquisition"
++CONFLICTING_EVIDENCE = "conflicting_evidence"
++CENSUS_INTEGRITY_UNVERIFIED = "census_integrity_unverified"
++
++SCHEMA_VERSION = 1
++MAX_PROBE_BYTES = 8 * 1024 * 1024
++
++_EXT_ID_RE = re.compile(r"^([a-p]{32})$")
++_SCOPE_RE = re.compile(r"^chrome-extension://([a-p]{32})(/|$)")
++
++
++def _ext_id_from_scope(scope_url):
++    """Extension id for chrome-extension:// scopes; None for anything else."""
++    match = _SCOPE_RE.match(scope_url or "")
++    return match.group(1) if match else None
++
++
++def load_collection(collection_root):
++    """Load and normalize collection.json into [(profile_key, [snapshot, ...])].
++
++    Both the single-profile form (top-level profile_key + snapshots) and the
++    multi-profile form (profiles array) normalize to the latter.
++    """
++    manifest_path = os.path.join(collection_root, "collection.json")
++    with open(manifest_path, encoding="utf-8") as handle:
++        manifest = json.load(handle)
++
++    profiles = manifest.get("profiles")
++    if profiles is None:
++        if "profile_key" not in manifest or "snapshots" not in manifest:
++            raise ValueError("collection.json declares neither profiles nor a single profile")
++        profiles = [{"profile_key": manifest["profile_key"],
++                     "snapshots": manifest["snapshots"]}]
++
++    normalized = []
++    for profile in profiles:
++        seed = profile.get("integrity_seed") or manifest.get("integrity_seed")
++        snapshots = []
++        for snapshot in profile.get("snapshots", []):
++            complete = {cls: cls in snapshot.get("complete_artifacts", [])
++                        for cls in ("extension_inventory", "extension_disk",
++                                    "service_worker", "script_cache")}
++            snapshots.append({
++                "id": snapshot["id"],
++                "captured_at": snapshot.get("captured_at"),
++                "path": snapshot["path"],
++                "complete": complete,
++            })
++        normalized.append({"profile_key": profile["profile_key"],
++                           "integrity_seed": seed, "snapshots": snapshots})
++    return normalized
++
++
++def _safe_worker_body(ext_root, profile_dir):
++    """Read the manifest-declared background service worker body, traversal-safe.
++
++    Returns (sha256_hex_or_None, status) where status is one of
++    'no_manifest_worker', 'consistent_candidate', 'unverifiable'. The declared
++    path is resolved strictly inside ext_root (the directory holding
++    manifest.json); any escape, absolute path or unreadable file yields
++    (None, 'unverifiable') without reading anything outside ext_root.
++    """
++    manifest_path = os.path.join(ext_root, "manifest.json")
++    try:
++        with open(manifest_path, encoding="utf-8", errors="replace") as handle:
++            manifest = json.load(handle)
++    except (OSError, json.JSONDecodeError):
++        return None, "unverifiable"
++
++    declared = (manifest.get("background") or {}).get("service_worker")
++    if not declared or not isinstance(declared, str):
++        return None, "unverifiable"
++
++    real_root = os.path.realpath(ext_root)
++    candidate = os.path.realpath(os.path.join(ext_root, declared))
++    if candidate == real_root or not candidate.startswith(real_root + os.sep):
++        return None, "unverifiable"
++    if not os.path.isfile(candidate):
++        return None, "unverifiable"
++    try:
++        if os.path.getsize(candidate) > MAX_PROBE_BYTES:
++            return None, "unverifiable"
++        with open(candidate, "rb") as handle:
++            body = handle.read(MAX_PROBE_BYTES)
++    except OSError:
++        return None, "unverifiable"
++    return hashlib.sha256(body).hexdigest(), "consistent_candidate"
++
++
++def classify_census(profile_dir, integrity_seed):
++    """Split census records into trusted / untrusted by re-validating their MACs.
++
++    mac = HMAC-SHA256(bytes.fromhex(seed), pref_path + NUL + canonical_json(record))
++    stored under protection.macs["extensions.settings.<ext_id>"]. Records whose
++    MAC is missing or does not validate are untrusted: they are observations that
++    something wrote the record, never evidence of a legitimate install.
++    """
++    import hmac as hmac_mod
++    pref_path = os.path.join(profile_dir, "Secure Preferences")
++    trusted, untrusted = set(), set()
++    if not integrity_seed:
++        # no integrity metadata declared: the census stands as parsed (spec §0 —
++        # the trust rules are demonstrated by the seeded specimens)
++        try:
++            with open(pref_path, encoding="utf-8", errors="replace") as handle:
++                prefs = json.load(handle)
++            for ext_id, record in ((prefs.get("extensions") or {}).get("settings") or {}).items():
++                if isinstance(record, dict) and _EXT_ID_RE.match(ext_id or ""):
++                    trusted.add(ext_id)
++        except (OSError, json.JSONDecodeError):
++            pass
++        return trusted, untrusted
++    try:
++        with open(pref_path, encoding="utf-8", errors="replace") as handle:
++            prefs = json.load(handle)
++    except (OSError, json.JSONDecodeError):
++        return trusted, untrusted
++    settings = (prefs.get("extensions") or {}).get("settings") or {}
++    macs = (prefs.get("protection") or {}).get("macs") or {}
++    for ext_id, record in settings.items():
++        if not isinstance(record, dict) or not _EXT_ID_RE.match(ext_id or ""):
++            continue
++        path_key = f"extensions.settings.{ext_id}"
++        stored = (macs.get(path_key) or "").lower()
++        canonical = json.dumps(record, sort_keys=True, separators=(",", ":"))
++        msg = path_key.encode() + b"\x00" + canonical.encode()
++        try:
++            expected = hmac_mod.new(bytes.fromhex(integrity_seed), msg,
++                                    hashlib.sha256).hexdigest()
++        except ValueError:
++            expected = None
++        if integrity_seed and stored and expected and stored == expected:
++            trusted.add(ext_id)
++        else:
++            untrusted.add(ext_id)
++    return trusted, untrusted
++
++
++class SnapshotEvidence(object):
++    """Parsed, normalized evidence for one snapshot of one profile."""
++
++    def __init__(self, profile_key, snapshot_id, complete):
++        self.profile_key = profile_key
++        self.snapshot_id = snapshot_id
++        self.complete = complete
++        self.inventory_ids = set()
++        self.inventory_trusted = set()
++        self.inventory_untrusted = set()
++        self.disk_ids = set()
++        self.registration_ids = set()
++        self.revision_shas = {}   # ext_id -> set of body sha256 hex
++        self.disk_workers = {}    # ext_id -> (sha256_hex_or_None, status)
++
++    def presence(self, ext_id):
++        """Three-valued extension presence per spec §3.1/§4.
++
++        An untrusted census record never votes: it is an observation that
++        something wrote the record, not evidence of a legitimate install.
++        """
++        inv_complete = self.complete["extension_inventory"]
++        disk_complete = self.complete["extension_disk"]
++        trusted = ext_id in self.inventory_trusted
++        untrusted = ext_id in self.inventory_untrusted
++        on_disk = ext_id in self.disk_ids
++
++        inv_verdict = None
++        if inv_complete:
++            if trusted:
++                inv_verdict = PRESENT
++            elif untrusted:
++                inv_verdict = None  # untrusted records never vote (spec §3.1)
++            else:
++                inv_verdict = ABSENT
++        disk_verdict = None
++        if disk_complete:
++            disk_verdict = PRESENT if on_disk else ABSENT
++
++        if inv_verdict is not None and disk_verdict is not None:
++            if inv_verdict != disk_verdict:
++                return UNKNOWN  # trusted-vs-trusted conflict
++            return inv_verdict
++        if inv_verdict is not None:
++            return inv_verdict
++        if disk_verdict is not None:
++            return disk_verdict
++        return UNKNOWN
++
++    def presence_conflict(self, ext_id):
++        if not (self.complete["extension_inventory"] and self.complete["extension_disk"]):
++            return False
++        if ext_id in self.inventory_untrusted:
++            return False  # untrusted records never vote, hence never conflict
++        return (ext_id in self.inventory_trusted) != (ext_id in self.disk_ids)
++
++    def registration(self, ext_id):
++        if self.complete["service_worker"]:
++            return PRESENT if ext_id in self.registration_ids else ABSENT
++        return PRESENT if ext_id in self.registration_ids else UNKNOWN
++
++    def revisions(self, ext_id):
++        """(observed_sha_set, census_complete_flag).
++
++        Observed revisions are always valid observations. The census is complete
++        only when the script cache was fully acquired AND the registration
++        database was available to attribute bodies to this extension's scope
++        (orphan bodies are not entity evidence, spec §3.3).
++        """
++        linked = self.complete["script_cache"] and self.complete["service_worker"]
++        return (self.revision_shas.get(ext_id, set()), linked)
++
++    def revision_census_complete(self):
++        """Entity-level revision census quality (spec §3.3): the script cache
++        must be fully acquired AND the registration database available for
++        scope attribution of the cached bodies."""
++        return self.complete["script_cache"] and self.complete["service_worker"]
++
++    def evidence_records(self, ext_id):
++        records = []
++        complete = self.complete
++
++        if ext_id in self.inventory_untrusted:
++            records.append({"snapshot": self.snapshot_id, "artifact": "extension_inventory",
++                            "fact": "census_record_untrusted",
++                            "complete": complete["extension_inventory"]})
++        elif ext_id in self.inventory_trusted:
++            records.append({"snapshot": self.snapshot_id, "artifact": "extension_inventory",
++                            "fact": "extension_present", "complete": complete["extension_inventory"]})
++        elif complete["extension_inventory"]:
++            records.append({"snapshot": self.snapshot_id, "artifact": "extension_inventory",
++                            "fact": "extension_absent", "complete": True})
++        else:
++            records.append({"snapshot": self.snapshot_id, "artifact": "extension_inventory",
++                            "fact": "extension_state_unknown", "complete": False})
++
++        if ext_id in self.disk_ids:
++            records.append({"snapshot": self.snapshot_id, "artifact": "extension_disk",
++                            "fact": "extension_present", "complete": complete["extension_disk"]})
++        elif complete["extension_disk"]:
++            records.append({"snapshot": self.snapshot_id, "artifact": "extension_disk",
++                            "fact": "extension_absent", "complete": True})
++        else:
++            records.append({"snapshot": self.snapshot_id, "artifact": "extension_disk",
++                            "fact": "extension_state_unknown", "complete": False})
++
++        reg = self.registration(ext_id)
++        reg_fact = {"present": "registration_present", "absent": "registration_absent",
++                    "unknown": "registration_state_unknown"}[reg]
++        records.append({"snapshot": self.snapshot_id, "artifact": "service_worker",
++                        "fact": reg_fact, "complete": complete["service_worker"]})
++
++        shas, cache_complete = self.revisions(ext_id)
++        if shas:
++            for sha in sorted(shas):
++                records.append({"snapshot": self.snapshot_id, "artifact": "script_cache",
++                                "fact": "revision_observed", "complete": cache_complete,
++                                "sha256": f"sha256:{sha}"})
++        elif cache_complete:
++            records.append({"snapshot": self.snapshot_id, "artifact": "script_cache",
++                            "fact": "revisions_state_unknown", "complete": True})
++        else:
++            records.append({"snapshot": self.snapshot_id, "artifact": "script_cache",
++                            "fact": "revisions_state_unknown", "complete": False})
++        return records
++
++
++def collect_snapshot_evidence(collection_root, profile_key, snapshot, integrity_seed):
++    """Run Hindsight's existing parsers over one snapshot profile and normalize."""
++    evidence = SnapshotEvidence(profile_key, snapshot["id"], snapshot["complete"])
++    profile_dir = os.path.join(collection_root, snapshot["path"])
++    evidence.integrity_seed = integrity_seed
++
++    if not os.path.isdir(profile_dir):
++        log.warning("Snapshot profile directory missing: %s", profile_dir)
++        return evidence
++
++    try:
++        chrome = Chrome(profile_dir, no_copy=True)
++    except Exception as exc:  # malformed profile must not crash analysis
++        log.warning("Failed to initialize profile %s: %s", profile_dir, exc)
++        return evidence
++
++    try:
++        if os.path.isdir(os.path.join(profile_dir, "Extensions")):
++            chrome.get_extensions(chrome.profile_path, "Extensions")
++        if os.path.isfile(os.path.join(profile_dir, "Secure Preferences")):
++            chrome.get_extension_settings(chrome.profile_path, "Secure Preferences")
++        if os.path.isdir(os.path.join(profile_dir, "Service Worker")):
++            chrome.get_service_workers(chrome.profile_path, "Service Worker")
++    except Exception as exc:
++        log.warning("Parser failure on %s: %s", profile_dir, exc)
++        return evidence
++
++    # The raw census classification is authoritative: a record can be present
++    # even when its manifest is unreadable to the profile parser.
++    trusted_inv, untrusted_inv = classify_census(profile_dir, integrity_seed)
++    evidence.inventory_trusted |= trusted_inv
++    evidence.inventory_untrusted |= untrusted_inv
++    evidence.inventory_ids |= trusted_inv | untrusted_inv
++    for ext_id, ext in chrome._extensions_by_id.items():  # noqa: SLF001 - same package
++        if not _EXT_ID_RE.match(ext_id or ""):
++            continue
++        if getattr(ext, "on_disk", False):
++            evidence.disk_ids.add(ext_id)
++            # locate the on-disk version directory that holds manifest.json
++            ext_base = os.path.join(profile_dir, "Extensions", ext_id)
++            try:
++                versions = [d for d in os.listdir(ext_base)
++                            if re.match(r"^\d+(\.\d+)*_\d+$|^\d+(\.\d+)+$", d)
++                            and os.path.isfile(os.path.join(ext_base, d, "manifest.json"))]
++            except OSError:
++                versions = []
++            if len(versions) == 1:
++                sha, status = _safe_worker_body(os.path.join(ext_base, versions[0]),
++                                                profile_dir)
++                evidence.disk_workers[ext_id] = (sha, status)
++            elif len(versions) > 1:
++                # ambiguous active version; do not guess (spec §8)
++                evidence.disk_workers[ext_id] = (None, "unverifiable")
++
++    for item in chrome.parsed_storage:
++        name = type(item).__name__
++        if name == "ServiceWorkerItem":
++            ext_id = _ext_id_from_scope(getattr(item, "scope_url", ""))
++            if ext_id:
++                evidence.registration_ids.add(ext_id)
++        elif name == "ServiceWorkerScriptItem":
++            ext_id = _ext_id_from_scope(getattr(item, "scope_url", "") or "")
++            sha = getattr(item, "body_sha256", None)
++            if ext_id and sha:
++                evidence.revision_shas.setdefault(ext_id, set()).add(sha)
++    return evidence
++
++
++def _strength(state):
++    return {"INDETERMINATE": 0, "RESIDUAL_RUNTIME": 1,
++            "ACTIVE": 2, "POST_REMOVAL_CHANGE": 2, "REINSTALLED": 2}.get(state, 0)
++
++
++def analyze_profile(collection_root, profile_key, snapshots, integrity_seed=None):
++    """Reconstruct per-extension findings for one profile. Returns report entries."""
++    evidences = [collect_snapshot_evidence(collection_root, profile_key, s, integrity_seed)
++                 for s in snapshots]
++    ids = set()
++    for ev in evidences:
++        ids |= ev.inventory_ids | ev.disk_ids | ev.registration_ids
++
++    entries = []
++    for ext_id in sorted(ids):
++        ev_list = evidences
++        presence = [ev.presence(ext_id) for ev in ev_list]
++        conflicts = [ev.snapshot_id for ev in ev_list if ev.presence_conflict(ext_id)]
++        uncertainty = []
++        evidence_records = []
++        for ev in ev_list:
++            evidence_records.extend(ev.evidence_records(ext_id))
++
++        conflict = bool(conflicts)
++        for snap_id in conflicts:
++            uncertainty.append({"snapshot": snap_id, "artifact": "extension_inventory",
++                                "reason": CONFLICTING_EVIDENCE})
++            uncertainty.append({"snapshot": snap_id, "artifact": "extension_disk",
++                                "reason": CONFLICTING_EVIDENCE})
++
++        # census integrity: every untrusted record is flagged, wherever it appears
++        for ev in ev_list:
++            if ext_id in ev.inventory_untrusted:
++                uncertainty.append({"snapshot": ev.snapshot_id,
++                                    "artifact": "extension_inventory",
++                                    "reason": CENSUS_INTEGRITY_UNVERIFIED})
++
++        # revision ledger (deduplicated by SHA-256 of the body)
++        revisions = {}
++        for ev in ev_list:
++            shas, _ = ev.revisions(ext_id)
++            for sha in shas:
++                rev = revisions.setdefault(sha, {"first": ev.snapshot_id, "last": ev.snapshot_id})
++                rev["last"] = ev.snapshot_id
++        ordered_shas = sorted(revisions, key=lambda s: (revisions[s]["first"], s))
++
++        # removal / reappearance boundaries over adjacent snapshots.
++        # Terminology (spec §6): LP = last confirmed-present snapshot, FA = the
++        # snapshot immediately following LP that confirms absence. A revision is
++        # provably post-removal only when it is FIRST observed strictly after FA
++        # and was never observed at or before FA (a revision first seen at FA
++        # cannot be attributed to post-removal creation, spec §5).
++        removal_fa = None
++        reappearance = False
++        for i in range(len(presence) - 1):
++            here, nxt = presence[i], presence[i + 1]
++            if here == PRESENT and nxt == ABSENT and removal_fa is None:
++                removal_fa = i + 1
++            if here == ABSENT and nxt == PRESENT:
++                reappearance = True
++
++        seen_present = False
++        absent_after_present = False
++        for value in presence:
++            if value == PRESENT:
++                seen_present = True
++            elif value == ABSENT and seen_present:
++                absent_after_present = True
++
++        transitions = []
++        if removal_fa is not None:
++            transitions.append({"type": EXTENSION_REMOVED,
++                                "from_snapshot": snapshots[removal_fa - 1]["id"],
++                                "to_snapshot": snapshots[removal_fa]["id"]})
++
++        if conflict:
++            # conflict already forced the affected presence values to unknown;
++            # the state machine below downgrades only what depends on it
++            pass
++
++        if reappearance:
++            state = REINSTALLED
++            for i in range(len(presence) - 1):
++                if presence[i] == ABSENT and presence[i + 1] == PRESENT:
++                    transitions.append({"type": EXTENSION_REAPPEARED,
++                                        "from_snapshot": snapshots[i]["id"],
++                                        "to_snapshot": snapshots[i + 1]["id"]})
++                    break
++        elif removal_fa is not None:
++            observed_up_to_fa = set()
++            for ev in ev_list[:removal_fa + 1]:
++                shas, _ = ev.revisions(ext_id)
++                observed_up_to_fa |= shas
++
++            post = ev_list[removal_fa:]
++            post_complete = [ev.revision_census_complete() for ev in post]
++            all_post_complete = all(post_complete)
++
++            new_provable = False
++            new_unprovable = False
++            for sha in ordered_shas:
++                first_idx = next(i for i, ev in enumerate(ev_list)
++                                 if sha in ev.revision_shas.get(ext_id, set()))
++                if first_idx <= removal_fa:
++                    continue  # observed at or before FA: unattributable timing
++                intervening = ev_list[removal_fa:first_idx]
++                if all(ev.revision_census_complete() for ev in intervening):
++                    new_provable = True
++                else:
++                    new_unprovable = True
++
++            if all_post_complete:
++                state = POST_REMOVAL_CHANGE if new_provable else RESIDUAL_RUNTIME
++            else:
++                # the post-removal window contains an incompletely acquired
++                # census: neither a new revision nor its absence is provable
++                state = INDETERMINATE
++                for i, ev in enumerate(post):
++                    if not post_complete[i]:
++                        for key in ("script_cache", "service_worker"):
++                            if not ev.complete[key]:
++                                uncertainty.append({"snapshot": ev.snapshot_id,
++                                                    "artifact": key,
++                                                    "reason": INCOMPLETE_ACQUISITION})
++        elif seen_present and absent_after_present:
++            # confirmed absence follows confirmed presence but no adjacent
++            # boundary could be established (incomplete gap right after the
++            # last confirmed presence) -> downgrade (spec §6)
++            state = INDETERMINATE
++            for i, ev in enumerate(ev_list):
++                if presence[i] == UNKNOWN and i > 0 and presence[i - 1] != UNKNOWN:
++                    for artifact, key in (("extension_inventory", "extension_inventory"),
++                                          ("extension_disk", "extension_disk")):
++                        if not ev.complete[key]:
++                            uncertainty.append({"snapshot": ev.snapshot_id,
++                                                "artifact": artifact,
++                                                "reason": INCOMPLETE_ACQUISITION})
++        elif presence and presence[-1] == PRESENT:
++            state = ACTIVE
++        else:
++            state = INDETERMINATE
++            for i, ev in enumerate(ev_list):
++                if presence[i] == UNKNOWN:
++                    for key in ("extension_inventory", "extension_disk"):
++                        if not ev.complete[key]:
++                            uncertainty.append({"snapshot": ev.snapshot_id,
++                                                "artifact": key,
++                                                "reason": INCOMPLETE_ACQUISITION})
++
++        # on-disk worker correlation (spec §8)
++        consistency = UNKNOWN
++        disk_records = []
++        last = ev_list[-1]
++        disk_sha, status = last.disk_workers.get(ext_id, (None, "unverifiable"))
++        if ext_id in last.disk_ids and disk_sha is not None and status == "consistent_candidate":
++            observed = None
++            for ev in reversed(ev_list):
++                shas, cache_complete = ev.revisions(ext_id)
++                if cache_complete and shas:
++                    observed = shas
++                    break
++                if shas:
++                    observed = shas
++            if observed is None:
++                consistency = UNKNOWN
++                disk_records.append({"snapshot": last.snapshot_id, "artifact": "script_cache",
++                                     "fact": "disk_worker_unverifiable", "complete": False})
++            elif disk_sha in observed:
++                consistency = "consistent"
++                disk_records.append({"snapshot": last.snapshot_id, "artifact": "extension_disk",
++                                     "fact": "disk_worker_consistent", "complete": True})
++            else:
++                consistency = "divergent"
++                disk_records.append({"snapshot": last.snapshot_id, "artifact": "extension_disk",
++                                     "fact": "disk_worker_divergent", "complete": True})
++        else:
++            consistency = UNKNOWN
++            if ext_id in last.disk_ids:
++                disk_records.append({"snapshot": last.snapshot_id, "artifact": "extension_disk",
++                                     "fact": "disk_worker_unverifiable", "complete": True})
++        evidence_records.extend(disk_records)
++
++        # evidence downgrade guard: an INDETERMINATE conclusion never becomes a
++        # stronger one because of missing evidence (information monotonicity)
++        if state != INDETERMINATE and any(u["reason"] == INCOMPLETE_ACQUISITION
++                                          for u in uncertainty):
++            state = INDETERMINATE
++
++        entry = {
++            "extension_id": ext_id,
++            "current_state": state,
++            "runtime_consistency": consistency,
++            "snapshots": [
++                {"snapshot_id": ev.snapshot_id,
++                 "extension_presence": presence[i],
++                 "registration_presence": ev.registration(ext_id),
++                 "script_revisions": [f"sha256:{s}" for s in
++                                      sorted(ev.revision_shas.get(ext_id, set()))]}
++                for i, ev in enumerate(ev_list)
++            ],
++            "revisions": [
++                {"sha256": f"sha256:{sha}",
++                 "first_observed_snapshot": revisions[sha]["first"],
++                 "last_observed_snapshot": revisions[sha]["last"]}
++                for sha in ordered_shas
++            ],
++            "transitions": transitions,
++            "evidence": evidence_records,
++            "uncertainty": uncertainty,
++        }
++        if _strength(entry["current_state"]) < _strength(state):  # pragma: no cover
++            entry["current_state"] = state
++        entries.append(entry)
++    return entries
++
++
++def build_report(collection_root):
++    profiles = load_collection(collection_root)
++    report_profiles = []
++    for profile in profiles:
++        entries = analyze_profile(collection_root, profile["profile_key"],
++                                  profile["snapshots"],
++                                  profile.get("integrity_seed"))
++        report_profiles.append({"profile_key": profile["profile_key"],
++                                "extensions": entries})
++    return {"schema_version": SCHEMA_VERSION, "profiles": report_profiles}
++
++
++def run(collection_root, report_path):
++    """Entry point wired into the CLI: --extension-worker-report <path>."""
++    report = build_report(collection_root)
++    parent = os.path.dirname(os.path.abspath(report_path))
++    os.makedirs(parent, exist_ok=True)
++    with open(report_path, "w", encoding="utf-8") as handle:
++        json.dump(report, handle, indent=2, sort_keys=False)
++    log.info("Extension worker report written to %s", report_path)
++    return report

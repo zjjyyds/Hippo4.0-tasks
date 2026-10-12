@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "profile_key": "lab01/analyst/chrome/Default",
+      "extensions": [
+        {
+          "extension_id": "aabbccddeeffgghhiijjkkllmmnnoopp",
+          "current_state": "POST_REMOVAL_CHANGE",
+          "runtime_consistency": "unknown",
+          "snapshots": [
+            {
+              "snapshot_id": "t0",
+              "extension_presence": "present",
+              "registration_presence": "present",
+              "script_revisions": [
+                "sha256:41a84592c8322fd3241d1c044acfa0d6d7f031f253e44d75e33ad698ec171828"
+              ]
+            },
+            {
+              "snapshot_id": "t1",
+              "extension_presence": "absent",
+              "registration_presence": "present",
+              "script_revisions": []
+            },
+            {
+              "snapshot_id": "t2",
+              "extension_presence": "absent",
+              "registration_presence": "present",
+              "script_revisions": [
+                "sha256:41c48e1193ca78bf73b9dd71e427778d6c9e83f751f1bc150ceb9d7a29197915"
+              ]
+            }
+          ],
+          "revisions": [
+            {
+              "sha256": "sha256:41a84592c8322fd3241d1c044acfa0d6d7f031f253e44d75e33ad698ec171828",
+              "first_observed_snapshot": "t0",
+              "last_observed_snapshot": "t0"
+            },
+            {
+              "sha256": "sha256:41c48e1193ca78bf73b9dd71e427778d6c9e83f751f1bc150ceb9d7a29197915",
+              "first_observed_snapshot": "t2",
+              "last_observed_snapshot": "t2"
+            }
+          ],
+          "transitions": [
+            {
+              "type": "EXTENSION_REMOVED",
+              "from_snapshot": "t0",
+              "to_snapshot": "t1"
+            }
+          ],
+          "evidence": [
+            {
+              "snapshot": "t0",
+              "artifact": "extension_inventory",
+              "fact": "extension_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t0",
+              "artifact": "extension_disk",
+              "fact": "extension_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t0",
+              "artifact": "service_worker",
+              "fact": "registration_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t0",
+              "artifact": "script_cache",
+              "fact": "revision_observed",
+              "complete": true,
+              "sha256": "sha256:41a84592c8322fd3241d1c044acfa0d6d7f031f253e44d75e33ad698ec171828"
+            },
+            {
+              "snapshot": "t1",
+              "artifact": "extension_inventory",
+              "fact": "extension_absent",
+              "complete": true
+            },
+            {
+              "snapshot": "t1",
+              "artifact": "extension_disk",
+              "fact": "extension_state_unknown",
+              "complete": false
+            },
+            {
+              "snapshot": "t1",
+              "artifact": "service_worker",
+              "fact": "registration_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t1",
+              "artifact": "script_cache",
+              "fact": "revisions_state_unknown",
+              "complete": true
+            },
+            {
+              "snapshot": "t2",
+              "artifact": "extension_inventory",
+              "fact": "extension_absent",
+              "complete": true
+            },
+            {
+              "snapshot": "t2",
+              "artifact": "extension_disk",
+              "fact": "extension_state_unknown",
+              "complete": false
+            },
+            {
+              "snapshot": "t2",
+              "artifact": "service_worker",
+              "fact": "registration_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t2",
+              "artifact": "script_cache",
+              "fact": "revision_observed",
+              "complete": true,
+              "sha256": "sha256:41c48e1193ca78bf73b9dd71e427778d6c9e83f751f1bc150ceb9d7a29197915"
+            }
+          ],
+          "uncertainty": []
+        }
+      ]
+    }
+  ]
+}

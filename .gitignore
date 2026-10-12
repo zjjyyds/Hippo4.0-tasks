@@ -1,0 +1,20 @@
+# Ignore heavy trial data and temporary build artifacts
+jobs/
+work/
+work2/
+task1_binwalk_bmp_derived_stream/jobs/
+task1_binwalk_bmp_derived_stream/work/
+task1_binwalk_bmp_derived_stream/revisions/
+task1_binwalk_bmp_derived_stream/rerun/
+task1_binwalk_bmp_derived_stream/history/
+
+# Build caches & compiled objects
+**/target/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.rlib
+**/*.so
+**/*.dylib
+.cargo_cache/
+.DS_Store

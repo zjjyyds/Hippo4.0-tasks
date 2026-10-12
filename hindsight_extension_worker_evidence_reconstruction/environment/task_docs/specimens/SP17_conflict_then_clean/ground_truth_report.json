@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "profile_key": "lab01/analyst/chrome/Default",
+      "extensions": [
+        {
+          "extension_id": "aabbccddeeffgghhiijjkkllmmnnoopp",
+          "current_state": "ACTIVE",
+          "runtime_consistency": "consistent",
+          "snapshots": [
+            {
+              "snapshot_id": "t0",
+              "extension_presence": "present",
+              "registration_presence": "present",
+              "script_revisions": [
+                "sha256:41a84592c8322fd3241d1c044acfa0d6d7f031f253e44d75e33ad698ec171828"
+              ]
+            },
+            {
+              "snapshot_id": "t1",
+              "extension_presence": "unknown",
+              "registration_presence": "present",
+              "script_revisions": [
+                "sha256:41a84592c8322fd3241d1c044acfa0d6d7f031f253e44d75e33ad698ec171828"
+              ]
+            },
+            {
+              "snapshot_id": "t2",
+              "extension_presence": "present",
+              "registration_presence": "present",
+              "script_revisions": [
+                "sha256:41a84592c8322fd3241d1c044acfa0d6d7f031f253e44d75e33ad698ec171828"
+              ]
+            }
+          ],
+          "revisions": [
+            {
+              "sha256": "sha256:41a84592c8322fd3241d1c044acfa0d6d7f031f253e44d75e33ad698ec171828",
+              "first_observed_snapshot": "t0",
+              "last_observed_snapshot": "t2"
+            }
+          ],
+          "transitions": [],
+          "evidence": [
+            {
+              "snapshot": "t0",
+              "artifact": "extension_inventory",
+              "fact": "extension_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t0",
+              "artifact": "extension_disk",
+              "fact": "extension_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t0",
+              "artifact": "service_worker",
+              "fact": "registration_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t0",
+              "artifact": "script_cache",
+              "fact": "revision_observed",
+              "complete": true,
+              "sha256": "sha256:41a84592c8322fd3241d1c044acfa0d6d7f031f253e44d75e33ad698ec171828"
+            },
+            {
+              "snapshot": "t1",
+              "artifact": "extension_inventory",
+              "fact": "extension_absent",
+              "complete": true
+            },
+            {
+              "snapshot": "t1",
+              "artifact": "extension_disk",
+              "fact": "extension_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t1",
+              "artifact": "service_worker",
+              "fact": "registration_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t1",
+              "artifact": "script_cache",
+              "fact": "revision_observed",
+              "complete": true,
+              "sha256": "sha256:41a84592c8322fd3241d1c044acfa0d6d7f031f253e44d75e33ad698ec171828"
+            },
+            {
+              "snapshot": "t2",
+              "artifact": "extension_inventory",
+              "fact": "extension_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t2",
+              "artifact": "extension_disk",
+              "fact": "extension_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t2",
+              "artifact": "service_worker",
+              "fact": "registration_present",
+              "complete": true
+            },
+            {
+              "snapshot": "t2",
+              "artifact": "script_cache",
+              "fact": "revision_observed",
+              "complete": true,
+              "sha256": "sha256:41a84592c8322fd3241d1c044acfa0d6d7f031f253e44d75e33ad698ec171828"
+            },
+            {
+              "snapshot": "t2",
+              "artifact": "extension_disk",
+              "fact": "disk_worker_consistent",
+              "complete": true
+            }
+          ],
+          "uncertainty": [
+            {
+              "snapshot": "t1",
+              "artifact": "extension_inventory",
+              "reason": "conflicting_evidence"
+            },
+            {
+              "snapshot": "t1",
+              "artifact": "extension_disk",
+              "reason": "conflicting_evidence"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

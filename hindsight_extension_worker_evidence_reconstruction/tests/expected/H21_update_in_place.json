@@ -1,0 +1,10 @@
+{
+  "consistency": "consistent",
+  "extension_id": "abcdefghijklmnopabcdefghijklmnop",
+  "revisions": [
+    "AAA",
+    "BBB"
+  ],
+  "state": "ACTIVE",
+  "transitions": []
+}

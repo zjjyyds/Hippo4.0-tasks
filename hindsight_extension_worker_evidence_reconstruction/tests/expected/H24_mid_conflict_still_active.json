@@ -1,0 +1,10 @@
+{
+  "extension_id": "abcdefghijklmnopabcdefghijklmnop",
+  "state": "ACTIVE",
+  "uncertainty": [
+    [
+      "s1",
+      "conflicting_evidence"
+    ]
+  ]
+}

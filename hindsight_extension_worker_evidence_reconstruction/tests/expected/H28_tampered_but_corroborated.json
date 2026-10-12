@@ -1,0 +1,18 @@
+{
+  "extension_id": "abcdefghijklmnopabcdefghijklmnop",
+  "state": "ACTIVE",
+  "uncertainty": [
+    [
+      "s0",
+      "census_integrity_unverified"
+    ],
+    [
+      "s1",
+      "census_integrity_unverified"
+    ],
+    [
+      "s2",
+      "census_integrity_unverified"
+    ]
+  ]
+}
