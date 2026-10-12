@@ -15,4 +15,4 @@
 - `binwalker.enable_derived_streams(true)` 开启该能力；默认关闭，关闭时原有行为和 JSON 均保持不变（不得出现 `derived` 键）。
 - 在 `AnalysisResults.derived` 输出 `kind`、`stream_id`、升序去重的 `carrier_offsets`、`total_payload_size`、完整的 `payload: Vec<u8>` 和 `file_map`。kind 为 `bmp-fragmented-stream`，不要求嵌套结果。
 - `payload` 序列化为**完整字节整数数组**，长度等于 `total_payload_size`。验收会计算 SHA-256，并对照可信 Binwalk 扫描结果核对子签名和过滤；只返回摘要或文本不算恢复。
-- 不得修改 `Cargo.toml` / `Cargo.lock`，不得新增运行时依赖或调用外部子进程。**所有既有库、二进制及内置提取器回归测试必须保持通过。**
+- 不得修改 `Cargo.toml` / `Cargo.lock`，不得新增运行时依赖或调用外部子进程。**既有库、二进制与不依赖额外系统级解包工具的内置提取器回归测试必须保持通过；对需要外部解包工具的格式，不得破坏原始签名扫描行为。**

@@ -23,7 +23,7 @@ No nested-derived result is required. Reuse the existing signature engine and ho
 With derived scanning disabled, preserve all preexisting Binwalk behavior and omit the `derived` key entirely.
 
 ## Engineering constraints
-No additional Cargo dependencies; do not change Cargo.toml or Cargo.lock, spawn subprocesses, or rely on runtime external services. All existing upstream unit and built-in extractor regression tests must pass.
+No additional Cargo dependencies; do not change Cargo.toml or Cargo.lock, spawn subprocesses, or rely on runtime external services. All existing self-contained upstream library, binary and extractor regressions must pass. For extractor integrations requiring optional host-side unpacking tools, preserve their original signature-scanning behavior without requiring those tools to be installed.
 
 ## Reverse-engineering boundary
 Exact frame headers, bit synchronization, TLV extension behavior, optional XOR, fragment sessions and rejection conditions must be inferred from the sample archive. Hardcoding fixed outputs or specimen IDs is not a valid implementation.

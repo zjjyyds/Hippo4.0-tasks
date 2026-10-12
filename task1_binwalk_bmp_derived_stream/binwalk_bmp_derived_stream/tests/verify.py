@@ -156,6 +156,50 @@ def run_case(sandbox, scanner, fixtures_dir, case):
                             case_id, scanner, case)
 
 
+
+# Legacy inputs are copied from the pristine upstream commit into the root-owned
+# verifier image at build time. They are never taken from the agent workspace.
+LEGACY_SIGNATURE_INPUTS = (
+    'arj.bin', 'cramfs.bin', '7z.bin', 'squashfs.bin',
+    'squashfs_v2.bin', 'yaffs2.bin', 'zip.bin', 'zip_truncated.bin',
+)
+
+
+def check_legacy_signatures(sandbox, scanner, trusted_fixtures):
+    """Compare original and submitted scanning for extractor fixtures whose
+    extraction integration tests require unavailable system utilities.
+
+    This is a signature compatibility regression, NOT a substitute for
+    verifying the third-party extraction commands themselves.
+    """
+    passed = 0
+    for filename in LEGACY_SIGNATURE_INPUTS:
+        payload = (trusted_fixtures / filename).read_bytes()
+        try:
+            proc = sandbox.run([], payload)  # opt-in derived mode stays OFF
+        except subprocess.TimeoutExpired:
+            print(f'[FAIL] legacy {filename}: harness timed out', flush=True)
+            continue
+        if proc.returncode:
+            print(f'[FAIL] legacy {filename}: harness exit {proc.returncode}', flush=True)
+            continue
+        try:
+            output = json.loads(proc.stdout)
+            if not isinstance(output, dict) or 'derived' in output:
+                raise ValueError('legacy output must be a JSON object without derived')
+            actual = normalize_signatures(output.get('file_map'))
+            expected = normalize_signatures(scanner.scan(payload, {}))
+            if actual != expected:
+                raise ValueError('signature map diverged from pinned upstream')
+        except (ValueError, UnicodeError) as error:
+            print(f'[FAIL] legacy {filename}: {error}', flush=True)
+            continue
+        print(f'[OK] legacy {filename}: unchanged pinned signature scan', flush=True)
+        passed += 1
+    print(f'Legacy signature comparisons: {passed}/{len(LEGACY_SIGNATURE_INPUTS)}', flush=True)
+    return passed == len(LEGACY_SIGNATURE_INPUTS)
+
+
 def main():
     if len(sys.argv) != 4:
         sys.exit(f'Usage: {sys.argv[0]} <submitted_harness> <trusted_scanner> <trusted_runtime_root>')
@@ -173,7 +217,9 @@ def main():
             print(f'[{"OK" if ok else "FAIL"}] {message}', flush=True)
             passed += bool(ok)
         print(f'Summary: {passed} passed, {len(cases) - passed} failed out of {len(cases)} tests')
-        return 0 if passed == len(cases) else 1
+        legacy_ok = check_legacy_signatures(
+            sandbox, scanner, Path('/tests/legacy-fixtures'))
+        return 0 if passed == len(cases) and legacy_ok else 1
 
 
 if __name__ == '__main__':

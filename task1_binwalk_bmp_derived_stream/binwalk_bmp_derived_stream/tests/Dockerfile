@@ -24,6 +24,13 @@ RUN git clone https://github.com/ReFirmLabs/binwalk.git /workspace/binwalk \
     && git checkout 26713972e3f9f52dc37d4a421c4554b0bd9e82ef \
     && cargo test --no-run --locked
 
+# Preserve immutable upstream inputs for the eight extractor types whose
+# extraction suites require external tools (7zz, sasquatch, unyaffs, etc.).
+# The grader checks scanner output against a separately built trusted Binwalk.
+RUN mkdir -p /tests/legacy-fixtures \
+    && cp /workspace/binwalk/tests/inputs/*.bin /tests/legacy-fixtures/ \
+    && chmod -R a+rX /tests/legacy-fixtures
+
 WORKDIR /tests
 
 COPY generate_cases.py verify.py sandbox.py make_runtime.py test_verify.py security_probe.c test.sh /tests/

@@ -63,11 +63,15 @@ for f in $CHANGED_FILES; do
 done
 echo "[+] Dependency and runtime isolation constraints verified."
 
-echo "[*] Step 1: Running full upstream library, binary and integration regression tests..."
-if ! (cd "$WORKSPACE_DIR" && run_build cargo test --offline --locked --lib --bins --tests); then
+echo "[*] Step 1: Running self-contained upstream regression targets (14 extractor targets plus library/binaries)..."
+if ! (cd "$WORKSPACE_DIR" && run_build cargo test --offline --locked --lib --bins \
+        --test androidsparse --test arcadyan --test bmp --test bzip2 \
+        --test csman --test gzip --test jpeg --test matter_ota \
+        --test mbr --test pdf --test png --test qcow \
+        --test riff --test romfs); then
     fail "Upstream unit or built-in extractor regression tests failed on modified codebase"
 fi
-echo "[+] All upstream library, binary and integration tests passed."
+echo "[+] Self-contained upstream extractor regression tests passed."
 
 echo "[*] Step 2: Compiling Rust test harness against modified Binwalk library..."
 HARNESS_DIR="/tests/rust_harness"
@@ -86,7 +90,7 @@ if ! (cd "$WORKSPACE_DIR" && sha256sum -c /tests/upstream-cargo.sha256 >/dev/nul
     fail "Cargo.toml or Cargo.lock changed during the untrusted build"
 fi
 
-echo "[*] Step 3: Executing fresh private cases with payload hashes and a trusted scanner..."
+echo "[*] Step 3: Executing 21 fresh private cases plus external-tool-independent legacy signature comparisons..."
 if ! python3 /tests/verify.py "$HARNESS_BIN" /tests/trusted_signature_reference /tests/runtime-root; then
     fail "One or more DBSF test cases failed"
 fi
