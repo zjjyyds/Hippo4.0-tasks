@@ -4,7 +4,7 @@
 Some production firmware BMP resources hide diagnostic/configuration data streams within UI bitmap pixel data. The vendor tools and wire-format documentation have been lost. The specimen archive at `/task_docs/samples/` and `/task_docs/samples/MANIFEST.md` is the normative behavioral reference; unseen acceptance images follow the same protocol.
 
 ## Carrier scope
-Only **24-bit BI_RGB BMPs with a 40-byte BITMAPINFOHEADER** are supported. BMPs may occur at arbitrary offsets in a larger firmware input, and multiple carriers may contribute to one logical stream. Correctly account for pixel-row stride/padding and orientation. A frame may continue across qualifying BMP carriers at a non-byte-aligned bit phase. Do not sample unrelated or invalid BMP data.
+Only **24-bit BI_RGB BMPs with a 40-byte BITMAPINFOHEADER and positive height (bottom-up pixel rows)** are supported. BMPs may occur at arbitrary offsets in a larger firmware input, and multiple carriers may contribute to one logical stream. Correctly account for bottom-up pixel rows and stride/padding. Negative-height top-down BMPs are outside this reduced task. A frame may continue across qualifying BMP carriers at a non-byte-aligned bit phase. Do not sample unrelated or invalid BMP data.
 
 16/32-bit BMPs, indexed palettes, compression, V4/V5 headers and recursive derived scanning are **out of scope** for this reduced task. Negative specimens must produce no derived results.
 

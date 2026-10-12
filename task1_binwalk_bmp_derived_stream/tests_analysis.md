@@ -1,7 +1,7 @@
 # 精简版 DBSF 任务：测试分析与归因（已修订回归边界）
 
 ## 1. 公开要求
-仅实现 24-bit BI_RGB、40 字节 INFOHEADER 位图中的 DBSF v2。支持跨载体非字节对齐位拼接、TLV/XOR、乱序分片与异常会话判定。仅顶层派生扫描；恢复完整 payload，并通过既有 Binwalk 签名引擎继承 include/exclude。默认关闭时须与原始扫描结果兼容。题面明确不要求 16/32-bit 与派生递归。
+仅实现 24-bit BI_RGB、40 字节 INFOHEADER、正高度 bottom-up 位图中的 DBSF v2。支持跨载体非字节对齐位拼接、TLV/XOR、乱序分片与异常会话判定。仅顶层派生扫描；恢复完整 payload，并通过既有 Binwalk 签名引擎继承 include/exclude。默认关闭时须与原始扫描结果兼容。题面明确不要求 16/32-bit 与派生递归。
 
 兼容性契约限定：原始库/二进制测试和不依赖额外系统级解包工具的上游提取器回归必须通过。对 ARJ、CramFS、7z、SquashFS、YAFFS、ZIP 相关旧输入，要求派生功能关闭时签名扫描行为与固定原版相同；不声称在缺少第三方工具时验证了实际解包过程。
 

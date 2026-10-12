@@ -10,7 +10,7 @@
 - **领域**：攻防安全 / Reverse Engineering / 固件隐写分析
 - **目标仓库**：`ReFirmLabs/binwalk` (Rust v3, commit `26713972e3f9f52dc37d4a421c4554b0bd9e82ef`)
 - **核心难点**：
-  - 仅支持 24-bit BI_RGB，保留 10 个公开样本与校验清单
+  - 仅支持 24-bit BI_RGB（自下而上），保留 10 个公开样本与校验清单
   - 跨载体亚字节非对齐比特缝合（Sub-Byte Bit Splicing）
   - 嵌套帧包含性与幽灵魔数抑制
   - TLV/XOR 与分片会话冲突拒绝
@@ -43,7 +43,7 @@
 ## 🛠️ 本地运行与验证
 
 ```bash
-# 验证第一题 Oracle（57 组测试全过）：
+# 验证精简版第一题 Oracle（21 条私有用例，另有旧格式签名对照）：
 harbor run -p task1_binwalk_bmp_derived_stream/binwalk_bmp_derived_stream --agent oracle
 
 # 验证第二题 Oracle（21 组测试全过）：
