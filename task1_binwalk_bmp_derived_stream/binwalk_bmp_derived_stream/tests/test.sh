@@ -63,15 +63,11 @@ for f in $CHANGED_FILES; do
 done
 echo "[+] Dependency and runtime isolation constraints verified."
 
-echo "[*] Step 1: Running all existing Binwalk library unit tests and built-in extractor regression tests..."
-if ! (cd "$WORKSPACE_DIR" && run_build cargo test --offline --locked --lib --bins \
-        --test androidsparse --test arcadyan --test bmp --test bzip2 \
-        --test csman --test gzip --test jpeg --test matter_ota \
-        --test mbr --test pdf --test png --test qcow \
-        --test riff --test romfs); then
+echo "[*] Step 1: Running full upstream library, binary and integration regression tests..."
+if ! (cd "$WORKSPACE_DIR" && run_build cargo test --offline --locked --lib --bins --tests); then
     fail "Upstream unit or built-in extractor regression tests failed on modified codebase"
 fi
-echo "[+] All upstream unit and built-in extractor regression tests passed."
+echo "[+] All upstream library, binary and integration tests passed."
 
 echo "[*] Step 2: Compiling Rust test harness against modified Binwalk library..."
 HARNESS_DIR="/tests/rust_harness"

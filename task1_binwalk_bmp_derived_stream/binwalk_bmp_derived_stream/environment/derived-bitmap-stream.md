@@ -1,86 +1,29 @@
-# Firmware Derived Bitmap Stream Recovery — Field Notes
+# Firmware Derived Bitmap Stream — Reduced Field Notes
 
-## Situation
+## Background
+Some production firmware BMP resources hide diagnostic/configuration data streams within UI bitmap pixel data. The vendor tools and wire-format documentation have been lost. The specimen archive at `/task_docs/samples/` and `/task_docs/samples/MANIFEST.md` is the normative behavioral reference; unseen acceptance images follow the same protocol.
 
-Production firmware images for a family of embedded devices carry secondary diagnostic and
-configuration data streams hidden inside the pixel data of their UI bitmap (BMP) resources.
-The vendor toolchain that produced these images is lost. No format documentation survives —
-neither the packaging of the streams, nor the exact rules by which bitmap pixels carry them.
+## Carrier scope
+Only **24-bit BI_RGB BMPs with a 40-byte BITMAPINFOHEADER** are supported. BMPs may occur at arbitrary offsets in a larger firmware input, and multiple carriers may contribute to one logical stream. Correctly account for pixel-row stride/padding and orientation. A frame may continue across qualifying BMP carriers at a non-byte-aligned bit phase. Do not sample unrelated or invalid BMP data.
 
-What we do have is an archive of specimen firmware images, recovered from production devices,
-together with a verification manifest recording — for each specimen — every stream a correct
-recovery must produce and, just as importantly, what must NOT be produced:
+16/32-bit BMPs, indexed palettes, compression, V4/V5 headers and recursive derived scanning are **out of scope** for this reduced task. Negative specimens must produce no derived results.
 
-- `/task_docs/samples/` — specimen archive
-- `/task_docs/samples/MANIFEST.md` — verification manifest (ground truth)
+## API and output
+Enable scanning through `binwalker.enable_derived_streams(true)`; leave it disabled by default. Findings appear in `AnalysisResults.derived`, with these observable fields:
 
-## Task
+- `kind`: `bmp-fragmented-stream`
+- `stream_id`: recovered logical stream ID
+- `carrier_offsets`: sorted unique offsets of contributing BMP carriers, relative to input bytes
+- `total_payload_size`: byte length of the recovered payload
+- `payload: Vec<u8>`: every recovered byte, serialized as a JSON array of integers
+- `file_map`: Binwalk signature analysis of the actual recovered payload, with offsets relative to that payload
 
-Add an opt-in analysis capability to Binwalk that recovers these derived streams:
+No nested-derived result is required. Reuse the existing signature engine and honor include/exclude filters. The verifier independently hashes the payload (SHA-256) and compares the full child signature map against a trusted pinned Binwalk executable, ignoring UUIDs and result order.
 
-```rust
-binwalker.enable_derived_streams(true)
-```
+With derived scanning disabled, preserve all preexisting Binwalk behavior and omit the `derived` key entirely.
 
-When (and only when) enabled, analysis of a buffer must additionally locate and recover every
-derived stream carried by that data and include it in `AnalysisResults.derived`. Recovered
-stream payloads must be fed through Binwalk's regular signature analysis engine — with the
-caller's include/exclude filters honored — and must themselves be recursively examined for further
-derived streams carried by their own contents up to a maximum recursion depth of 3 (the outermost
-input scan is depth 1; recursive payload scans proceed through depths 2 and 3, and any stream
-reachable only at depth 4 or deeper must never be scanned or reported).
+## Engineering constraints
+No additional Cargo dependencies; do not change Cargo.toml or Cargo.lock, spawn subprocesses, or rely on runtime external services. All existing upstream unit and built-in extractor regression tests must pass.
 
-Each derived finding is reported as:
-
-```json
-{
-  "kind": "bmp-fragmented-stream",
-  "stream_id": 17,
-  "carrier_offsets": [4096, 16384],
-  "total_payload_size": 4096,
-  "payload": [80, 75, 3, 4, "... all remaining bytes ..."],
-  "file_map": [
-    { "offset": 64, "name": "zip", "description": "Zip archive data" }
-  ],
-  "nested_derived": [ "..." ]
-}
-```
-
-`nested_derived` (omitted when empty) holds findings recovered from within this stream's own
-payload; `file_map` holds signature results with offsets relative to the recovered payload.
-`carrier_offsets` is the sorted, deduplicated list of the byte offsets of the carriers that
-contributed to this stream — the specimens define precisely what "contributed" means.
-
-Each result, including nested results, must expose a public `payload: Vec<u8>` containing
-the complete recovered bytes and serialize it as a JSON array of integers in 0..255.
-The abbreviated array above is illustrative; actual output must contain every byte.
-`total_payload_size` must equal `payload.len()`. The verifier independently hashes these
-bytes and compares the full child signature map with an unmodified, pinned Binwalk scanner
-(ignoring per-run signature UUIDs). A digest or a description containing a digest is not
-a substitute for the payload. Signature ordering at the same offset is not significant.
-
-## Normative reference
-
-The specimen archive is the ONLY authoritative description of the packaging format and of
-all carriage and recovery rules. Behaviors demonstrated there — including every negative
-example — are normative. Where the manifest declares that nothing must be recovered, a
-correct implementation produces nothing. The acceptance suite grades against unseen firmware
-images produced by the same lost toolchain; strictly matching the specimen behaviors is the
-only robust strategy.
-
-## Non-negotiable constraints
-
-- Derived scanning is opt-in. With it disabled, Binwalk's existing behavior and serialized
-  output must be exactly as before — the `derived` field must not appear at all.
-- No new external runtime dependencies or subprocess invocations (`Cargo.toml` and `Cargo.lock` must remain unchanged, and derived stream analysis must execute purely in-process).
-- All existing library unit tests and built-in extractor regression tests must keep passing.
-
-## Engineering notes from the field team
-
-- The devices' asset pipelines packed UI sprites aggressively; several specimens carry more
-  than one image, and images frequently sit inside larger binary containers. Treat every byte
-  of a firmware image as potentially significant.
-- Some specimen images look like ordinary bitmaps but are not usable carriers; some look
-  corrupted or unusual but are fine. The manifest is the arbiter.
-- Recovered payloads in the archive are short strings so they can be verified by eye; on
-  real firmware they are arbitrary binary blobs (archives, configs, firmware stages).
+## Reverse-engineering boundary
+Exact frame headers, bit synchronization, TLV extension behavior, optional XOR, fragment sessions and rejection conditions must be inferred from the sample archive. Hardcoding fixed outputs or specimen IDs is not a valid implementation.
