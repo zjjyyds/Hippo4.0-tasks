@@ -6,20 +6,20 @@
 
 ## 📁 任务索引
 
-### 1. `binwalk_bmp_derived_stream`（第一题：固件位图派生数据流分析）
+### 1. `binwalk_bmp_derived_stream`（第一题：精简版固件位图派生数据流恢复）
 - **领域**：攻防安全 / Reverse Engineering / 固件隐写分析
 - **目标仓库**：`ReFirmLabs/binwalk` (Rust v3, commit `26713972e3f9f52dc37d4a421c4554b0bd9e82ef`)
 - **核心难点**：
-  - 纯黑盒样本逆向推导（18 个生产样本与清单）
+  - 仅支持 24-bit BI_RGB，保留 10 个公开样本与校验清单
   - 跨载体亚字节非对齐比特缝合（Sub-Byte Bit Splicing）
   - 嵌套帧包含性与幽灵魔数抑制
-  - 16-bit `BITMAPV4HEADER` / `BITMAPV5HEADER` 动态位域掩码采样
+  - TLV/XOR 与分片会话冲突拒绝
   - 多载体乱序重组与陈旧会话冲突隔离
-  - 递归深度上限与 SHA-256 载荷摘要完整性校验
-- **评测成绩**：`Pass@5 = 0/5`（平均交互轮数 > 500 轮，达到预期能力边界）
+  - 完整 payload SHA-256 校验及原有签名引擎复用
+- **评测状态**：精简版 21 条私有验证，需重新完成 5 次干净试跑；历史成绩受故障影响，不计作新版证据
 - **交付文件**：
   - `task1_binwalk_bmp_derived_stream/binwalk_bmp_derived_stream.zip`（任务包）
-  - `task1_binwalk_bmp_derived_stream/expert_trajectory.zip`（标准化轨迹包）
+  - `task1_binwalk_bmp_derived_stream/expert_trajectory.zip`（旧版历史轨迹，不可用于新版提交）
   - `task1_binwalk_bmp_derived_stream/tests_analysis.md`（三段式 tests 分析）
   - `task1_binwalk_bmp_derived_stream/题目提交信息.md`（表单填写指引）
 
