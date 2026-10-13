@@ -22,3 +22,10 @@
 `task.toml` 的 Agent 运行上限改为 3600 秒，Verifier 仍为 600 秒，Environment 构建仍为 600 秒。此限制仅用于完整进入任务后的 Agent 执行，不将 AgentSetupTimeoutError（0 步、360 秒）记为能力失败。平台可覆盖 task.toml，正式试跑须核对 job 最终解析配置。
 
 已有一次 120 步、43 分 21 秒、19/21 的有效失败，以及一次 268 步、2 小时 42 分 18 秒、21/21 的有效通过，说明尚不能凭两条轨迹确认 1 小时下的真实 pass@5。新版仅调整时间预算，不删减业务验证或修改 Oracle。过往试跑不再用于新预算的 pass@5 结论。建议先单并发完成 Agent 安装预检，再五轮独立试跑并逐个记录是否 setup、API、agent timeout 或 verifier 业务失败。
+
+## 6. 新版提供的公开工程骨架与快检（2026-10-13）
+在 Agent 环境 Docker 构建、固定上游 commit 后，只**新增**必要的接口/基础实现：`/task_docs/starter.py` 为 `src/binwalk.rs` 添加 opt-in API 及未实现的 `scan_derived`，新增 `src/derived/mod.rs` 结果数据类型和 `src/derived/bmp.rs` 的 24 位 BI_RGB 基础载体发现/像素 LSB 采样。这些内容不包含 DBSF v2 的帧同步、TLV/XOR、CRC、分片或会话推理。已有 Binwalk 函数和测试没有删除。真正的困难仍然是跨载体比特相位、TLV 边界与冲突处理。
+
+`/task_docs/public_check.py` 是 Agent 可见的、仅从 10 份公开样本 MANIFEST 提取预期 stream ID/长度/载体偏移/SHA-256 的**单次快速自检**。由公开 Cargo example 调用真实库扫描，不读取隐藏 Test，不影响 verifier 判定。公开样本通过且无具体错误时题面明确要求停止，不再进行重复全量回归。错误时可继续针对性修复。Verifier 独立执行 21 私有用例、14 原生上游回归及 8 项可信签名对照，**任何 Test/评分条件未变**。
+
+Oracle `solve.sh` 仅在检测到明确标记的 starter stub 时恢复其原始上游文件，并以既有 `solution.patch` 实现完整逻辑；这一步不修改测试或评分，也不会依赖事先隐藏的代码。需在真实 Docker/Harbor 下验证新的环境构建、Oracle 21/21 及 10 分钟的 verifier 上限。新任务内容与旧 5 次轨迹已不相同，必须重新实测，不可把先前 0 步安装失败计入能力失败。
