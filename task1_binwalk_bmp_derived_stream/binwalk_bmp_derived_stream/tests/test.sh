@@ -90,7 +90,7 @@ if ! (cd "$WORKSPACE_DIR" && sha256sum -c /tests/upstream-cargo.sha256 >/dev/nul
     fail "Cargo.toml or Cargo.lock changed during the untrusted build"
 fi
 
-echo "[*] Step 3: Executing 21 fresh private cases plus external-tool-independent legacy signature comparisons..."
+echo "[*] Step 3: Executing 24 fresh private cases plus external-tool-independent legacy signature comparisons..."
 if ! python3 /tests/verify.py "$HARNESS_BIN" /tests/trusted_signature_reference /tests/runtime-root; then
     fail "One or more DBSF test cases failed"
 fi
