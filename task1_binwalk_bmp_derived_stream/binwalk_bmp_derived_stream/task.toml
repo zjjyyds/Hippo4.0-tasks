@@ -2,15 +2,15 @@ version = "1.0"
 artifacts = ["/workspace/binwalk"]
 
 [task]
-name = "humanlaya/binwalk_bmp_derived_stream"
+name = "zjjyyds/binwalk_bmp_derived_stream"
 description = "Recover and analyze top-level fragmented DBSF v2 streams embedded in 24-bit BMP carriers."
-authors = [{ name = "humanlaya", email = "noreply@example.com" }]
+authors = [{ name = "zjjyyds", email = "1311340974@qq.com" }]
 keywords = ["reverse-engineering", "firmware", "bmp", "steganography", "rust"]
 
 [metadata]
 name = "binwalk_bmp_derived_stream"
-author_name = "humanlaya"
-author_email = "noreply@example.com"
+author_name = "zjjyyds"
+author_email = "1311340974@qq.com"
 category = "security"
 difficulty = "hard"
 tags = ["reverse-engineering", "firmware", "bmp", "steganography", "rust"]

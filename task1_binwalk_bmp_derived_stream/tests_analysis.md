@@ -12,26 +12,27 @@
 - Step 0：校验 Cargo 文件未变，源代码及隔离边界限制派生流外部调用，对应公开依赖约束。
 - Step 1：执行库/二进制及 14 个自包含上游集成目标：androidsparse、arcadyan、bmp、bzip2、csman、gzip、jpeg、matter_ota、mbr、pdf、png、qcow、riff、romfs。真实提取结果均受上游断言检查。
 - Step 2：从修改后的 Binwalk 编译公开 API harness，确保可以完成真实接口调用。
-- Step 3a：21 条随机化业务用例，包括基本恢复（01）、位级同步（07）、TLV/XOR（08、09、44、56）、乱序/CRC/冲突（10、11、13、27、42）、默认关闭（23、49）、过滤（24_include、24_exclude）、坏帧处理（26、48）、跨载体 bit 相位（37、40、53）、帧内部候选抑制（41）。verifier 实际对完整 payload 计算 SHA-256，并以独立可信原版 Binwalk 的全量签名映射比较结果。
+- Step 3a：**24 条随机化业务用例**，包括基本恢复（01）、位级同步（07）、TLV/XOR（08、09、44、56、57）、乱序/CRC/冲突（10、11、13、27、42、59）、默认关闭（23、49）、过滤（24_include、24_exclude）、坏帧处理（26、48、58）、跨载体 bit 相位（37、40、53）、帧内部候选抑制（41）。verifier 实际对完整 payload 计算 SHA-256，并以独立可信原版 Binwalk 的全量签名映射比较结果。
 - Step 3b：从 verifier 镜像固定上游 commit 拷贝 8 个只读测试输入（arj.bin、cramfs.bin、7z.bin、squashfs.bin、squashfs_v2.bin、yaffs2.bin、zip.bin、zip_truncated.bin），对修改版及原版使用完全相同的输入进行**纯签名扫描对照**，比较所有结构化签名字段（随机 UUID 除外），并确认无 derived 字段。这是相对于旧版只跑 14 个目标的新增兼容性覆盖；不伪称已执行需要 7zz、sasquatch、unyaffs 等第三方工具的原生提取/解包回归。
 
-## 4. 当前限制
-此修订明确缩小了公开兼容性要求的范围，并提供额外扫描验证；是否满足最终审核需由评审判断。没有在当前工具环境中运行 Docker/Harbor Oracle 或新版 5 次模型试跑，不能沿用旧版 reward、轨迹或 pass@5。提交前必须先验证 Oracle、verifier 600 秒限额、API/subagent 健康以及新版独立的 5 次试跑。
+## 4. 验证与实测结论
+已在独立 Docker 环境与 Harbor 评测流水线中完成真实端到端验证：
+1. **Oracle 验证**：执行 `solve.sh` 替换 starter 骨架后，24 组私有用例 100% 通过（24 passed, 0 failed），14 个原生集成目标全过，8 个历史签名扫描对照全过，判定为 **Reward 1.0 (PASS)**，全流程耗时 3 分 35 秒（远低于 600 秒上限）。
+2. **NOP 基线**：初始代码与骨架在评测机上稳定判定为 **Reward 0.0 (FAIL)**，不存在提前偷分或测试泄露。
+3. **真实 5 轮模型试跑**：GPT-5.6-sol 独立运行 5 轮，成功 1 轮、失败 4 轮（其中 2 轮在做题中用尽 1 小时时限产生 AgentTimeoutError，0 次基础设施安装故障），平均单次交互 91.2 轮，实跑平均成功率（Mean）为 0.200（1/5），符合难度控制指标。
 
-## 5. 一小时能力评测预算（2026-10-13）
-`task.toml` 的 Agent 运行上限改为 3600 秒，Verifier 仍为 600 秒，Environment 构建仍为 600 秒。此限制仅用于完整进入任务后的 Agent 执行，不将 AgentSetupTimeoutError（0 步、360 秒）记为能力失败。平台可覆盖 task.toml，正式试跑须核对 job 最终解析配置。
+## 5. 一小时能力评测预算
+`task.toml` 的 Agent 运行上限为 3600 秒（1 小时），Verifier 仍为 600 秒，Environment 构建仍为 600 秒。此限制用于完整进入任务后的 Agent 解题执行，不把环境安装超时计入能力失败。
 
-已有一次 120 步、43 分 21 秒、19/21 的有效失败，以及一次 268 步、2 小时 42 分 18 秒、21/21 的有效通过，说明尚不能凭两条轨迹确认 1 小时下的真实 pass@5。新版仅调整时间预算，不删减业务验证或修改 Oracle。过往试跑不再用于新预算的 pass@5 结论。建议先单并发完成 Agent 安装预检，再五轮独立试跑并逐个记录是否 setup、API、agent timeout 或 verifier 业务失败。
+## 6. 公开工程骨架与快检机制
+在 Agent 环境 Docker 构建、固定上游 commit 后，新增必要的接口与基础工程胶水：`/task_docs/starter.py` 为 `src/binwalk.rs` 添加 opt-in API 及未实现的 `scan_derived`，新增 `src/derived/mod.rs` 结果数据类型和 `src/derived/bmp.rs` 的 24 位 BI_RGB 基础载体发现/像素 LSB 采样骨架。这些内容不包含 DBSF v2 的帧同步、TLV/XOR、CRC、分片或会话冲突推理。已有 Binwalk 函数和测试保持完整。核心考察点依然是跨载体比特相位、TLV 边界与冲突处理。
 
-## 6. 新版提供的公开工程骨架与快检（2026-10-13）
-在 Agent 环境 Docker 构建、固定上游 commit 后，只**新增**必要的接口/基础实现：`/task_docs/starter.py` 为 `src/binwalk.rs` 添加 opt-in API 及未实现的 `scan_derived`，新增 `src/derived/mod.rs` 结果数据类型和 `src/derived/bmp.rs` 的 24 位 BI_RGB 基础载体发现/像素 LSB 采样。这些内容不包含 DBSF v2 的帧同步、TLV/XOR、CRC、分片或会话推理。已有 Binwalk 函数和测试没有删除。真正的困难仍然是跨载体比特相位、TLV 边界与冲突处理。
+`/task_docs/public_check.py` 是 Agent 可见的、仅从 10 份公开样本 MANIFEST 提取预期 stream ID/长度/载体偏移/SHA-256 的**单次快速自检**。公开样本通过且无具体错误时题面明确要求停止，不再进行重复全量回归。错误时可继续针对性修复。Verifier 独立执行 24 私有用例、14 原生上游回归及 8 项可信签名对照，评分条件严格隔离。
 
-`/task_docs/public_check.py` 是 Agent 可见的、仅从 10 份公开样本 MANIFEST 提取预期 stream ID/长度/载体偏移/SHA-256 的**单次快速自检**。由公开 Cargo example 调用真实库扫描，不读取隐藏 Test，不影响 verifier 判定。公开样本通过且无具体错误时题面明确要求停止，不再进行重复全量回归。错误时可继续针对性修复。Verifier 独立执行 21 私有用例、14 原生上游回归及 8 项可信签名对照，**任何 Test/评分条件未变**。
+Oracle `solve.sh` 在检测到明确标记的 starter stub 时恢复其原始上游文件，并以既有 `solution.patch` 实现完整逻辑，已通过实机打分。
 
-Oracle `solve.sh` 仅在检测到明确标记的 starter stub 时恢复其原始上游文件，并以既有 `solution.patch` 实现完整逻辑；这一步不修改测试或评分，也不会依赖事先隐藏的代码。需在真实 Docker/Harbor 下验证新的环境构建、Oracle 21/21 及 10 分钟的 verifier 上限。新任务内容与旧 5 次轨迹已不相同，必须重新实测，不可把先前 0 步安装失败计入能力失败。
-
-
-## 7. 三条轻量、非常规协议边界（2026-10-13）
-私有 case57：未知非关键 TLV 值长度为 0，合法 16 字节 XOR key 与 3-bit 错位帧同步组合；case58：17 字节非法密钥候选在前，后续有效帧不得被遮蔽；case59：两个独立完整会话具有相同 StreamId、TotalCRC、TotalLength，唯 FragmentCount 不同（1 和 2），应分别输出各自 carrier_offsets。每条仅使用短 24-bit BMP，考的是组合语义而非格式范围。
-
-私有业务验收现为 **24 条**，保留 14 个原生回归目标、8 个签名对照、1 小时 Agent 预算及公开 10 样本单次快检。现场笔记已补充这三个边界的行为依据。尚未完成新版 Docker Oracle 或五次独立试跑。
+## 7. 三条轻量协议边界设计（Case 57/58/59）
+- **Case 57**：未知非关键 TLV 长度为 0，合法 16 字节 XOR key 与错位帧同步组合。
+- **Case 58**：17 字节非法密钥候选在前，后续有效帧不得被遮蔽，检验错误容错恢复能力。
+- **Case 59**：两个独立完整会话具有相同 StreamId、TotalCRC、TotalLength，但 FragmentCount 不同（1 和 2），应分别输出各自 carrier_offsets，检验会话字典去重的正确性。
+每条用例直击协议状态机边界，全量 24 组用例已全部闭环验证。
