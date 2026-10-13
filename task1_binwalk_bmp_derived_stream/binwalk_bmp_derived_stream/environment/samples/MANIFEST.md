@@ -15,8 +15,9 @@ How to read this manifest:
   produces no derived results at all — recovering anything there is a defect.
 
 The acceptance suite grades against unseen firmware images produced by the same (lost) vendor
-toolchain. Every rule exercised there is demonstrated somewhere in this archive — positively
-or negatively. Treat the specimens, and especially the negative examples, as normative.
+toolchain. The public specimens demonstrate the basic behaviors; the compact boundary
+semantics in `/task_docs/derived-bitmap-stream.md` are also authoritative.
+Unseen inputs may combine these rules. Treat negative specimens as normative.
 
 ---
 
