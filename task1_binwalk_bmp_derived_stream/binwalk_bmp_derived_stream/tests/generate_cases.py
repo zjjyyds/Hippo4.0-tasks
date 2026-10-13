@@ -826,6 +826,102 @@ def generate_all_cases(output_dir):
         }],
         "description": "Unknown non-critical TLV records with no key present; frame accepted unchanged"
     })
+
+    # CASE 57: empty unknown noncritical TLV + maximum legal XOR key, unaligned.
+    z57 = build_zip_payload("CASE57_EMPTY_TLV_MAX_KEY")
+    ext57 = build_tlv(0x22, b"") + build_tlv(0x33, b"\x01")
+    f57 = build_dbsf_v2_frame(z57, stream_id=571, header_ext=ext57,
+                              xor_key=bytes(range(1, 17)))
+    bits57 = frame_to_bits(f57)
+    w57, h57 = dims_for_bits(len(bits57) + 3)
+    bmp57 = build_bmp(width=w57, height=h57, bpp=24,
+                      bits_to_embed=bits57, slip_bits=3)
+    p57 = out_path / "case57_empty_tlv_xor16_bitphase.bin"
+    p57.write_bytes(os.urandom(80) + bmp57)
+    manifest.append({
+        "id": "case57_empty_tlv_xor16_bitphase",
+        "file": p57.name,
+        "enable_derived": True,
+        "expect_derived": True,
+        "expected_streams": [{
+            "kind": "bmp-fragmented-stream",
+            "stream_id": 571,
+            "carrier_offsets": [80],
+            "total_payload_size": len(z57),
+            "expected_child_signatures": [{"name": "zip", "offset": 0}]
+        }],
+        "description": "Empty unknown noncritical TLV, maximal 16-byte XOR key, 3-bit sync slip"
+    })
+
+    # CASE 58: invalid 17-byte XOR key candidate must not suppress valid later frame.
+    z58 = build_zip_payload("CASE58_AFTER_INVALID_KEY")
+    invalid58 = build_dbsf_v2_frame(
+        b"UNTRUSTED", stream_id=581, xor_key=bytes(range(1, 18)))
+    valid58 = build_dbsf_v2_frame(z58, stream_id=582)
+    bits58 = frame_to_bits(invalid58 + os.urandom(7) + valid58)
+    w58, h58 = dims_for_bits(len(bits58))
+    bmp58 = build_bmp(width=w58, height=h58, bpp=24, bits_to_embed=bits58)
+    p58 = out_path / "case58_invalid_key_then_valid.bin"
+    p58.write_bytes(os.urandom(64) + bmp58)
+    manifest.append({
+        "id": "case58_invalid_key_then_valid",
+        "file": p58.name,
+        "enable_derived": True,
+        "expect_derived": True,
+        "expected_streams": [{
+            "kind": "bmp-fragmented-stream",
+            "stream_id": 582,
+            "carrier_offsets": [64],
+            "total_payload_size": len(z58),
+            "expected_child_signatures": [{"name": "zip", "offset": 0}]
+        }],
+        "description": "Reject 17-byte XOR key and continue synchronizing to next valid frame"
+    })
+
+    # CASE 59: two complete sessions share StreamId/CRC/length but differ in fragment count.
+    z59 = build_zip_payload("CASE59_SAME_ID_CRC_DIFFERENT_FRAGMENT_COUNT")
+    crc59 = binascii.crc32(z59) & 0xFFFFFFFF
+    full59 = build_dbsf_v2_frame(z59, stream_id=591, fragment_count=1,
+                                 total_len=len(z59), total_crc=crc59)
+    slices59 = split_payload_with_offsets(z59, 2)
+    part59_0 = build_dbsf_v2_frame(
+        slices59[0][1], stream_id=591, fragment_index=0, fragment_count=2,
+        payload_offset=slices59[0][0], total_len=len(z59), total_crc=crc59)
+    part59_1 = build_dbsf_v2_frame(
+        slices59[1][1], stream_id=591, fragment_index=1, fragment_count=2,
+        payload_offset=slices59[1][0], total_len=len(z59), total_crc=crc59)
+    bmps59 = []
+    for framed in (full59, part59_1, part59_0):
+        sample_bits = frame_to_bits(framed)
+        wi, hi = dims_for_bits(len(sample_bits))
+        bmps59.append(build_bmp(width=wi, height=hi, bpp=24, bits_to_embed=sample_bits))
+    off59_a = 48
+    off59_b = off59_a + len(bmps59[0]) + 32
+    off59_c = off59_b + len(bmps59[1]) + 32
+    p59 = out_path / "case59_same_id_crc_distinct_sessions.bin"
+    p59.write_bytes(os.urandom(off59_a) + bmps59[0] + os.urandom(32)
+                    + bmps59[1] + os.urandom(32) + bmps59[2])
+    manifest.append({
+        "id": "case59_same_id_crc_distinct_sessions",
+        "file": p59.name,
+        "enable_derived": True,
+        "expect_derived": True,
+        "expected_streams": [{
+            "kind": "bmp-fragmented-stream",
+            "stream_id": 591,
+            "carrier_offsets": [off59_a],
+            "total_payload_size": len(z59),
+            "expected_child_signatures": [{"name": "zip", "offset": 0}]
+        }, {
+            "kind": "bmp-fragmented-stream",
+            "stream_id": 591,
+            "carrier_offsets": [off59_b, off59_c],
+            "total_payload_size": len(z59),
+            "expected_child_signatures": [{"name": "zip", "offset": 0}]
+        }],
+        "description": "StreamId/CRC/length collision: distinct 1-fragment and 2-fragment sessions coexist"
+    })
+
     stream_payloads = {}
     for (sid, fcnt, tlen, tcrc), fdict in _STREAM_FRAGS.items():
         if 0 < tlen <= 16 * 1024 * 1024 and len(fdict) == fcnt and all(i in fdict for i in range(fcnt)):
