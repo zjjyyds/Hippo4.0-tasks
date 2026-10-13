@@ -27,3 +27,9 @@ No additional Cargo dependencies; do not change Cargo.toml or Cargo.lock, spawn 
 
 ## Reverse-engineering boundary
 Exact frame headers, bit synchronization, TLV extension behavior, optional XOR, fragment sessions and rejection conditions must be inferred from the sample archive. Hardcoding fixed outputs or specimen IDs is not a valid implementation.
+
+## Compact boundary semantics
+
+Unknown **non-critical** TLV tags may contain a zero-length value. The cyclic XOR key (tag 0x01) must have a length of **1–16 bytes**, inclusive; a key outside that range invalidates the frame, even if its own CRC would otherwise be correct. A rejected candidate does not consume subsequent sampled bits: the decoder must keep scanning for a later valid frame.
+
+StreamId alone does not identify a unique session. Two separately complete, CRC-consistent sessions may share StreamId and TotalCRC but specify different FragmentCount values. Do not merge fragments across such sessions, and report each independently valid result with its own contributing carrier offsets. These boundaries require no other BMP formats or recursive scanning.
