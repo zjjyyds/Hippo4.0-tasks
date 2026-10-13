@@ -113,7 +113,7 @@ class GeneratorTests(unittest.TestCase):
                 generate_all_cases(root / 'second')
             first = json.loads((root / 'first/cases_manifest.json').read_text())
             second = json.loads((root / 'second/cases_manifest.json').read_text())
-            self.assertEqual(len(first), 21)
+            self.assertEqual(len(first), 24)
             self.assertEqual([c['id'] for c in first], [c['id'] for c in second])
             self.assertEqual(first[0]['expected_streams'][0]['stream_id'], 1 ^ 0x12345678)
             self.assertEqual(second[0]['expected_streams'][0]['stream_id'], 1 ^ 0x87654321)
