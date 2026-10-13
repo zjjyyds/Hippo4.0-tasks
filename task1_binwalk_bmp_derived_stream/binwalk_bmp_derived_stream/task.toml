@@ -3,7 +3,7 @@ artifacts = ["/workspace/binwalk"]
 
 [task]
 name = "humanlaya/binwalk_bmp_derived_stream"
-description = "Recover and recursively analyze fragmented DBSF v2 derived data streams embedded in firmware BMP resources."
+description = "Recover and analyze top-level fragmented DBSF v2 streams embedded in 24-bit BMP carriers."
 authors = [{ name = "humanlaya", email = "noreply@example.com" }]
 keywords = ["reverse-engineering", "firmware", "bmp", "steganography", "rust"]
 
@@ -20,7 +20,7 @@ timeout_sec = 600.0
 environment_mode = "separate"
 
 [agent]
-timeout_sec = 14400.0
+timeout_sec = 3600.0
 
 [environment]
 build_timeout_sec = 600.0
