@@ -41,3 +41,5 @@ Manual invocation in the test container:
 python3 -B /tests/verify.py /path/to/submitted/rust_harness \
   /tests/trusted_signature_reference /tests/runtime-root
 ```
+
+Three compact private boundary cases test empty unknown noncritical TLVs with a 16-byte XOR key, recovery after a rejected 17-byte key, and isolation of complete sessions reusing StreamId/CRC but differing in FragmentCount. They require no new BMP format, recursion or system tools.
