@@ -29,3 +29,9 @@
 `/task_docs/public_check.py` 是 Agent 可见的、仅从 10 份公开样本 MANIFEST 提取预期 stream ID/长度/载体偏移/SHA-256 的**单次快速自检**。由公开 Cargo example 调用真实库扫描，不读取隐藏 Test，不影响 verifier 判定。公开样本通过且无具体错误时题面明确要求停止，不再进行重复全量回归。错误时可继续针对性修复。Verifier 独立执行 21 私有用例、14 原生上游回归及 8 项可信签名对照，**任何 Test/评分条件未变**。
 
 Oracle `solve.sh` 仅在检测到明确标记的 starter stub 时恢复其原始上游文件，并以既有 `solution.patch` 实现完整逻辑；这一步不修改测试或评分，也不会依赖事先隐藏的代码。需在真实 Docker/Harbor 下验证新的环境构建、Oracle 21/21 及 10 分钟的 verifier 上限。新任务内容与旧 5 次轨迹已不相同，必须重新实测，不可把先前 0 步安装失败计入能力失败。
+
+
+## 7. 三条轻量、非常规协议边界（2026-10-13）
+私有 case57：未知非关键 TLV 值长度为 0，合法 16 字节 XOR key 与 3-bit 错位帧同步组合；case58：17 字节非法密钥候选在前，后续有效帧不得被遮蔽；case59：两个独立完整会话具有相同 StreamId、TotalCRC、TotalLength，唯 FragmentCount 不同（1 和 2），应分别输出各自 carrier_offsets。每条仅使用短 24-bit BMP，考的是组合语义而非格式范围。
+
+私有业务验收现为 **24 条**，保留 14 个原生回归目标、8 个签名对照、1 小时 Agent 预算及公开 10 样本单次快检。现场笔记已补充这三个边界的行为依据。尚未完成新版 Docker Oracle 或五次独立试跑。
