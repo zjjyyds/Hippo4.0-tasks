@@ -5,10 +5,10 @@ Binwalk checkout before installing submission artifacts. The executable, its
 runtime libraries, verifier sources and original Cargo file hashes are owned by
 root. Submission build scripts and regression tests run as UID 10001.
 
-Only after those steps finish does `verify.py` generate the 57 case families in
+Only after those steps finish does `verify.py` generate the 24 randomized private case entries in
 a private root-owned temporary directory. Every run changes stream identifiers,
-ZIP contents, PNG ancillary content, opaque payload bytes and fixture names.
-Every expected stream, including nested streams, must have a complete-payload
+ZIP contents, opaque payload bytes and fixture names.
+Every expected derived stream must have a complete-payload
 SHA-256; missing generator expectations are infrastructure failures.
 
 The submitted harness receives binary input via stdin and the constant logical
@@ -25,8 +25,7 @@ Each derived entry must deliver the full `payload` byte array. The verifier hash
 the bytes itself, validates their length, and compares the entire `file_map` with
 the trusted scanner run on the same bytes and include/exclude filters. Signature
 UUIDs are ignored and result ordering is normalized. The top-level signature map
-is checked too, including with derived mode disabled. Unexpected nested streams
-are rejected even when the expected nested list is empty.
+is checked too, including with derived mode disabled. Unexpected nested streams are rejected: this reduced task only requires top-level derived results.
 
 This establishes recovered content and observable signature behavior; black-box
 tests do not prove which internal algorithm a submission used.
