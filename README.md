@@ -18,7 +18,7 @@
   - 完整 payload SHA-256 校验及原有签名引擎复用
 - **工程起点**：Environment 预置可编译的 API/结果结构和 24-bit BMP 读取骨架，不包含 DBSF 协议答案
 - **交付策略**：Agent 限时 1 小时，使用 `python3 /task_docs/public_check.py` 对 10 份公开样本做一次快速检查；全部通过且无具体错误即停止，完整验证由独立 Verifier 进行
-- **评测状态**：精简版 21 条私有验证（外加 14 个原生回归与 8 项签名对照），**新版骨架尚需 Oracle Docker 验证及重新完成五次有效试跑**；旧记录不能证明新版难度
+- **评测状态**：精简版 24 条私有验证（外加 14 个原生回归与 8 项签名对照），**新版骨架尚需 Oracle Docker 验证及重新完成五次有效试跑**；旧记录不能证明新版难度
 - **交付文件**：
   - `task1_binwalk_bmp_derived_stream/binwalk_bmp_derived_stream.zip`（任务包）
   - `task1_binwalk_bmp_derived_stream/expert_trajectory.zip`（旧版历史轨迹，不可用于新版提交）
@@ -45,7 +45,7 @@
 ## 🛠️ 本地运行与验证
 
 ```bash
-# 验证精简版第一题 Oracle（21 条私有用例，另有旧格式签名对照）：
+# 验证精简版第一题 Oracle（24 条私有用例，另有旧格式签名对照）：
 harbor run -p task1_binwalk_bmp_derived_stream/binwalk_bmp_derived_stream --agent oracle
 
 # 验证第二题 Oracle（21 组测试全过）：
