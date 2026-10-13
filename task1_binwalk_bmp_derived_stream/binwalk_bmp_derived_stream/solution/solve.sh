@@ -20,6 +20,15 @@ fi
 
 echo "[*] Applying solution patch to $REPO_DIR..."
 cd "$REPO_DIR"
+
+# Agent workspaces begin with optional, public starter boilerplate. Replace
+# only the boilerplate with the full correct implementation for Oracle tests.
+# No upstream code, tests, verifier or dependencies are bypassed.
+if grep -q "STARTER ONLY" src/binwalk.rs 2>/dev/null; then
+    git restore -- src/binwalk.rs src/lib.rs src/main.rs
+    rm -rf src/derived
+fi
+git apply --check "$PATCH_FILE"
 git apply "$PATCH_FILE"
 
 echo "[*] Building modified Binwalk codebase..."
