@@ -24,10 +24,10 @@
 ## 5. 一小时能力评测预算
 `task.toml` 的 Agent 运行上限为 3600 秒（1 小时），Verifier 仍为 600 秒，Environment 构建仍为 600 秒。此限制用于完整进入任务后的 Agent 解题执行，不把环境安装超时计入能力失败。
 
-## 6. 公开工程骨架与快检机制
+## 6. 公开工程骨架与可选辅助检查
 在 Agent 环境 Docker 构建、固定上游 commit 后，新增必要的接口与基础工程胶水：`/task_docs/starter.py` 为 `src/binwalk.rs` 添加 opt-in API 及未实现的 `scan_derived`，新增 `src/derived/mod.rs` 结果数据类型和 `src/derived/bmp.rs` 的 24 位 BI_RGB 基础载体发现/像素 LSB 采样骨架。这些内容不包含 DBSF v2 的帧同步、TLV/XOR、CRC、分片或会话冲突推理。已有 Binwalk 函数和测试保持完整。核心考察点依然是跨载体比特相位、TLV 边界与冲突处理。
 
-`/task_docs/public_check.py` 是 Agent 可见的、仅从 10 份公开样本 MANIFEST 提取预期 stream ID/长度/载体偏移/SHA-256 的**单次快速自检**。公开样本通过且无具体错误时题面明确要求停止，不再进行重复全量回归。错误时可继续针对性修复。Verifier 独立执行 24 私有用例、14 原生上游回归及 8 项可信签名对照，评分条件严格隔离。
+`/task_docs/public_check.py` 是环境提供的可选辅助工具，仅从 10 份公开样本 MANIFEST 提取预期 stream ID、长度、载体偏移和 SHA-256。**题面不要求使用该工具，不限定其他测试命令、调试顺序、运行次数或结束会话的条件**。评分只核验最终恢复结果、签名行为及公开约束。Verifier 独立执行 24 条私有用例、14 个原生上游回归目标及 8 项可信签名对照；辅助脚本的调用与否不作为评分指标。
 
 Oracle `solve.sh` 在检测到明确标记的 starter stub 时恢复其原始上游文件，并以既有 `solution.patch` 实现完整逻辑，已通过实机打分。
 
