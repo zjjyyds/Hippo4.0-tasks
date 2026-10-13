@@ -16,3 +16,7 @@
 - 在 `AnalysisResults.derived` 输出 `kind`、`stream_id`、升序去重的 `carrier_offsets`、`total_payload_size`、完整的 `payload: Vec<u8>` 和 `file_map`。kind 为 `bmp-fragmented-stream`，不要求嵌套结果。
 - `payload` 序列化为**完整字节整数数组**，长度等于 `total_payload_size`。验收会计算 SHA-256，并对照可信 Binwalk 扫描结果核对子签名和过滤；只返回摘要或文本不算恢复。
 - 不得修改 `Cargo.toml` / `Cargo.lock`，不得新增运行时依赖或调用外部子进程。**既有库、二进制与不依赖额外系统级解包工具的内置提取器回归测试必须保持通过；对需要外部解包工具的格式，不得破坏原始签名扫描行为。**
+
+## 时间预算与建议验证方式
+
+Agent 执行时间上限为 **3600 秒（1 小时）**。请在时限内完成实现并保留可构建的修改；不需要实现本题明确排除的 BMP 位深和派生流递归。开发中可用 `cargo check --offline --locked --lib` 快速排查编译问题，并用公开样本清单逐项复核可观察行为。该建议不规定具体算法，也不增加额外验收条件。
