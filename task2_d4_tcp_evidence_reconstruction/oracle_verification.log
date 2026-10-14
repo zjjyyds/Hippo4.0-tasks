@@ -1,0 +1,1366 @@
+[*] Step 1: Running D4 TCP Evidence Reconstruction Verifier (48 checks)...
+[*] Starting D4 TCP Evidence Reconstruction Verifier on /workspace/d4-net-forensics...
+[*] Running upstream regression tests...
+[+] All upstream regression tests passed.
+[+] Generated 24 PCAP scenarios.
+[+] Parsed 3 packets from /tmp/tmpocmg3idi/case_01_baseline_contiguous_handshake.pcap
+[+] Extracted 3 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_01_baseline_contiguous_handshake.pcap
+  Total Packets: 3
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 3
+
+  --- Top Ports ---
+    50001 (     unknown): 3 packets, 130 bytes
+       80 (        HTTP): 3 packets, 130 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 3 packets
+                10.0.0.2: 3 packets
+============================================================
+[OK] [Case 01 Normal] baseline_contiguous_handshake
+[+] Parsed 3 packets from /tmp/tmpocmg3idi/rev_case_01_baseline_contiguous_handshake.pcap
+[+] Extracted 3 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_01_baseline_contiguous_handshake.pcap
+  Total Packets: 3
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 3
+
+  --- Top Ports ---
+    50001 (     unknown): 3 packets, 130 bytes
+       80 (        HTTP): 3 packets, 130 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 3 packets
+                10.0.0.2: 3 packets
+============================================================
+[OK] [Case 01 Reversed] baseline_contiguous_handshake
+[+] Parsed 5 packets from /tmp/tmpocmg3idi/case_02_out_of_order_reassembly.pcap
+[+] Extracted 5 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_02_out_of_order_reassembly.pcap
+  Total Packets: 5
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 5
+
+  --- Top Ports ---
+    50002 (     unknown): 5 packets, 213 bytes
+       80 (        HTTP): 5 packets, 213 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 5 packets
+                10.0.0.2: 5 packets
+============================================================
+[OK] [Case 02 Normal] out_of_order_reassembly
+[+] Parsed 5 packets from /tmp/tmpocmg3idi/rev_case_02_out_of_order_reassembly.pcap
+[+] Extracted 5 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_02_out_of_order_reassembly.pcap
+  Total Packets: 5
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 5
+
+  --- Top Ports ---
+    50002 (     unknown): 5 packets, 213 bytes
+       80 (        HTTP): 5 packets, 213 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 5 packets
+                10.0.0.2: 5 packets
+============================================================
+[OK] [Case 02 Reversed] out_of_order_reassembly
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/case_03_identical_retransmission_no_conflict.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_03_identical_retransmission_no_conflict.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50003 (     unknown): 4 packets, 184 bytes
+       80 (        HTTP): 4 packets, 184 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 03 Normal] identical_retransmission_no_conflict
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/rev_case_03_identical_retransmission_no_conflict.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_03_identical_retransmission_no_conflict.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50003 (     unknown): 4 packets, 184 bytes
+       80 (        HTTP): 4 packets, 184 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 03 Reversed] identical_retransmission_no_conflict
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/case_04_single_byte_conflict_no_majority_vote.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_04_single_byte_conflict_no_majority_vote.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50004 (     unknown): 4 packets, 178 bytes
+       80 (        HTTP): 4 packets, 178 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 04 Normal] single_byte_conflict_no_majority_vote
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/rev_case_04_single_byte_conflict_no_majority_vote.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_04_single_byte_conflict_no_majority_vote.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50004 (     unknown): 4 packets, 178 bytes
+       80 (        HTTP): 4 packets, 178 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 04 Reversed] single_byte_conflict_no_majority_vote
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/case_05_multibyte_overlapping_conflict.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_05_multibyte_overlapping_conflict.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50005 (     unknown): 4 packets, 184 bytes
+       80 (        HTTP): 4 packets, 184 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 05 Normal] multibyte_overlapping_conflict
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/rev_case_05_multibyte_overlapping_conflict.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_05_multibyte_overlapping_conflict.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50005 (     unknown): 4 packets, 184 bytes
+       80 (        HTTP): 4 packets, 184 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 05 Reversed] multibyte_overlapping_conflict
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/case_06_unobserved_sequence_gaps.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_06_unobserved_sequence_gaps.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50006 (     unknown): 4 packets, 173 bytes
+       80 (        HTTP): 4 packets, 173 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 06 Normal] unobserved_sequence_gaps
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/rev_case_06_unobserved_sequence_gaps.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_06_unobserved_sequence_gaps.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50006 (     unknown): 4 packets, 173 bytes
+       80 (        HTTP): 4 packets, 173 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 06 Reversed] unobserved_sequence_gaps
+[+] Parsed 3 packets from /tmp/tmpocmg3idi/case_07_sequence_wrap_around_boundary.pcap
+[+] Extracted 3 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_07_sequence_wrap_around_boundary.pcap
+  Total Packets: 3
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 3
+
+  --- Top Ports ---
+    50007 (     unknown): 3 packets, 151 bytes
+       80 (        HTTP): 3 packets, 151 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 3 packets
+                10.0.0.2: 3 packets
+============================================================
+[OK] [Case 07 Normal] sequence_wrap_around_boundary
+[+] Parsed 3 packets from /tmp/tmpocmg3idi/rev_case_07_sequence_wrap_around_boundary.pcap
+[+] Extracted 3 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_07_sequence_wrap_around_boundary.pcap
+  Total Packets: 3
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 3
+
+  --- Top Ports ---
+    50007 (     unknown): 3 packets, 151 bytes
+       80 (        HTTP): 3 packets, 151 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 3 packets
+                10.0.0.2: 3 packets
+============================================================
+[OK] [Case 07 Reversed] sequence_wrap_around_boundary
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/case_08_wrap_around_out_of_order.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_08_wrap_around_out_of_order.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50008 (     unknown): 4 packets, 186 bytes
+       80 (        HTTP): 4 packets, 186 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 08 Normal] wrap_around_out_of_order
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/rev_case_08_wrap_around_out_of_order.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_08_wrap_around_out_of_order.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50008 (     unknown): 4 packets, 186 bytes
+       80 (        HTTP): 4 packets, 186 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 08 Reversed] wrap_around_out_of_order
+[+] Parsed 3 packets from /tmp/tmpocmg3idi/case_09_wrap_around_with_conflict.pcap
+[+] Extracted 3 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_09_wrap_around_with_conflict.pcap
+  Total Packets: 3
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 3
+
+  --- Top Ports ---
+    50009 (     unknown): 3 packets, 128 bytes
+       80 (        HTTP): 3 packets, 128 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 3 packets
+                10.0.0.2: 3 packets
+============================================================
+[OK] [Case 09 Normal] wrap_around_with_conflict
+[+] Parsed 3 packets from /tmp/tmpocmg3idi/rev_case_09_wrap_around_with_conflict.pcap
+[+] Extracted 3 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_09_wrap_around_with_conflict.pcap
+  Total Packets: 3
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 3
+
+  --- Top Ports ---
+    50009 (     unknown): 3 packets, 128 bytes
+       80 (        HTTP): 3 packets, 128 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 3 packets
+                10.0.0.2: 3 packets
+============================================================
+[OK] [Case 09 Reversed] wrap_around_with_conflict
+[+] Parsed 2 packets from /tmp/tmpocmg3idi/case_10_syn_less_midstream_capture.pcap
+[+] Extracted 2 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_10_syn_less_midstream_capture.pcap
+  Total Packets: 2
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 2
+
+  --- Top Ports ---
+    50010 (     unknown): 2 packets, 107 bytes
+       80 (        HTTP): 2 packets, 107 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 2 packets
+                10.0.0.2: 2 packets
+============================================================
+[OK] [Case 10 Normal] syn_less_midstream_capture
+[+] Parsed 2 packets from /tmp/tmpocmg3idi/rev_case_10_syn_less_midstream_capture.pcap
+[+] Extracted 2 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_10_syn_less_midstream_capture.pcap
+  Total Packets: 2
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 2
+
+  --- Top Ports ---
+    50010 (     unknown): 2 packets, 107 bytes
+       80 (        HTTP): 2 packets, 107 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 2 packets
+                10.0.0.2: 2 packets
+============================================================
+[OK] [Case 10 Reversed] syn_less_midstream_capture
+[+] Parsed 3 packets from /tmp/tmpocmg3idi/case_11_fin_sequence_consumption.pcap
+[+] Extracted 3 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_11_fin_sequence_consumption.pcap
+  Total Packets: 3
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 3
+
+  --- Top Ports ---
+    50011 (     unknown): 3 packets, 135 bytes
+       80 (        HTTP): 3 packets, 135 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 3 packets
+                10.0.0.2: 3 packets
+============================================================
+[OK] [Case 11 Normal] fin_sequence_consumption
+[+] Parsed 3 packets from /tmp/tmpocmg3idi/rev_case_11_fin_sequence_consumption.pcap
+[+] Extracted 3 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_11_fin_sequence_consumption.pcap
+  Total Packets: 3
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 3
+
+  --- Top Ports ---
+    50011 (     unknown): 3 packets, 135 bytes
+       80 (        HTTP): 3 packets, 135 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 3 packets
+                10.0.0.2: 3 packets
+============================================================
+[OK] [Case 11 Reversed] fin_sequence_consumption
+[+] Parsed 6 packets from /tmp/tmpocmg3idi/case_12_same_4tuple_multi_generation_fin.pcap
+[+] Extracted 6 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_12_same_4tuple_multi_generation_fin.pcap
+  Total Packets: 6
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 6
+
+  --- Top Ports ---
+    50012 (     unknown): 6 packets, 263 bytes
+       80 (        HTTP): 6 packets, 263 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 6 packets
+                10.0.0.2: 6 packets
+============================================================
+[OK] [Case 12 Normal] same_4tuple_multi_generation_fin
+[+] Parsed 6 packets from /tmp/tmpocmg3idi/rev_case_12_same_4tuple_multi_generation_fin.pcap
+[+] Extracted 6 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_12_same_4tuple_multi_generation_fin.pcap
+  Total Packets: 6
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 6
+
+  --- Top Ports ---
+    50012 (     unknown): 6 packets, 263 bytes
+       80 (        HTTP): 6 packets, 263 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 6 packets
+                10.0.0.2: 6 packets
+============================================================
+[OK] [Case 12 Reversed] same_4tuple_multi_generation_fin
+[+] Parsed 5 packets from /tmp/tmpocmg3idi/case_13_same_4tuple_multi_generation_rst.pcap
+[+] Extracted 5 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_13_same_4tuple_multi_generation_rst.pcap
+  Total Packets: 5
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 5
+
+  --- Top Ports ---
+    50013 (     unknown): 5 packets, 220 bytes
+       80 (        HTTP): 5 packets, 220 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 5 packets
+                10.0.0.2: 5 packets
+============================================================
+[OK] [Case 13 Normal] same_4tuple_multi_generation_rst
+[+] Parsed 5 packets from /tmp/tmpocmg3idi/rev_case_13_same_4tuple_multi_generation_rst.pcap
+[+] Extracted 5 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_13_same_4tuple_multi_generation_rst.pcap
+  Total Packets: 5
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 5
+
+  --- Top Ports ---
+    50013 (     unknown): 5 packets, 220 bytes
+       80 (        HTTP): 5 packets, 220 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 5 packets
+                10.0.0.2: 5 packets
+============================================================
+[OK] [Case 13 Reversed] same_4tuple_multi_generation_rst
+[+] Parsed 2 packets from /tmp/tmpocmg3idi/case_14_ethernet_link_padding_stripping.pcap
+[+] Extracted 2 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_14_ethernet_link_padding_stripping.pcap
+  Total Packets: 2
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 2
+
+  --- Top Ports ---
+    50014 (     unknown): 2 packets, 85 bytes
+       80 (        HTTP): 2 packets, 85 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 2 packets
+                10.0.0.2: 2 packets
+============================================================
+[OK] [Case 14 Normal] ethernet_link_padding_stripping
+[+] Parsed 2 packets from /tmp/tmpocmg3idi/rev_case_14_ethernet_link_padding_stripping.pcap
+[+] Extracted 2 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_14_ethernet_link_padding_stripping.pcap
+  Total Packets: 2
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 2
+
+  --- Top Ports ---
+    50014 (     unknown): 2 packets, 85 bytes
+       80 (        HTTP): 2 packets, 85 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 2 packets
+                10.0.0.2: 2 packets
+============================================================
+[OK] [Case 14 Reversed] ethernet_link_padding_stripping
+[+] Parsed 2 packets from /tmp/tmpocmg3idi/case_15_variable_tcp_options_header_offset.pcap
+[+] Extracted 2 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_15_variable_tcp_options_header_offset.pcap
+  Total Packets: 2
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 2
+
+  --- Top Ports ---
+    50015 (     unknown): 2 packets, 111 bytes
+       80 (        HTTP): 2 packets, 111 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 2 packets
+                10.0.0.2: 2 packets
+============================================================
+[OK] [Case 15 Normal] variable_tcp_options_header_offset
+[+] Parsed 2 packets from /tmp/tmpocmg3idi/rev_case_15_variable_tcp_options_header_offset.pcap
+[+] Extracted 2 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_15_variable_tcp_options_header_offset.pcap
+  Total Packets: 2
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 2
+
+  --- Top Ports ---
+    50015 (     unknown): 2 packets, 111 bytes
+       80 (        HTTP): 2 packets, 111 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 2 packets
+                10.0.0.2: 2 packets
+============================================================
+[OK] [Case 15 Reversed] variable_tcp_options_header_offset
+[+] Parsed 2 packets from /tmp/tmpocmg3idi/case_16_variable_ipv4_ihl_options.pcap
+[+] Extracted 2 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_16_variable_ipv4_ihl_options.pcap
+  Total Packets: 2
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 2
+
+  --- Top Ports ---
+    50016 (     unknown): 2 packets, 103 bytes
+       80 (        HTTP): 2 packets, 103 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 2 packets
+                10.0.0.2: 2 packets
+============================================================
+[OK] [Case 16 Normal] variable_ipv4_ihl_options
+[+] Parsed 2 packets from /tmp/tmpocmg3idi/rev_case_16_variable_ipv4_ihl_options.pcap
+[+] Extracted 2 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_16_variable_ipv4_ihl_options.pcap
+  Total Packets: 2
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 2
+
+  --- Top Ports ---
+    50016 (     unknown): 2 packets, 103 bytes
+       80 (        HTTP): 2 packets, 103 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 2 packets
+                10.0.0.2: 2 packets
+============================================================
+[OK] [Case 16 Reversed] variable_ipv4_ihl_options
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/case_17_concurrent_distinct_connections.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_17_concurrent_distinct_connections.pcap
+  Total Packets: 4
+  Total Flows: 2
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    10001 (     unknown): 2 packets, 88 bytes
+       80 (        HTTP): 2 packets, 88 bytes
+    10002 (     unknown): 2 packets, 96 bytes
+      443 (       HTTPS): 2 packets, 96 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 2 packets
+                10.0.0.3: 2 packets
+============================================================
+[OK] [Case 17 Normal] concurrent_distinct_connections
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/rev_case_17_concurrent_distinct_connections.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_17_concurrent_distinct_connections.pcap
+  Total Packets: 4
+  Total Flows: 2
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    10002 (     unknown): 2 packets, 96 bytes
+      443 (       HTTPS): 2 packets, 96 bytes
+    10001 (     unknown): 2 packets, 88 bytes
+       80 (        HTTP): 2 packets, 88 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.3: 2 packets
+                10.0.0.2: 2 packets
+============================================================
+[OK] [Case 17 Reversed] concurrent_distinct_connections
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/case_18_bidirectional_directional_separation.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_18_bidirectional_directional_separation.pcap
+  Total Packets: 4
+  Total Flows: 2
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    49152 (     unknown): 4 packets, 197 bytes
+       80 (        HTTP): 4 packets, 197 bytes
+
+  --- HTTP Requests (1) ---
+    GET / -> 
+
+  --- Top Talkers ---
+            192.168.1.50: 4 packets
+             192.168.1.1: 4 packets
+============================================================
+[OK] [Case 18 Normal] bidirectional_directional_separation
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/rev_case_18_bidirectional_directional_separation.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_18_bidirectional_directional_separation.pcap
+  Total Packets: 4
+  Total Flows: 2
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+       80 (        HTTP): 4 packets, 197 bytes
+    49152 (     unknown): 4 packets, 197 bytes
+
+  --- HTTP Requests (1) ---
+    GET / -> 
+
+  --- Top Talkers ---
+             192.168.1.1: 4 packets
+            192.168.1.50: 4 packets
+============================================================
+[OK] [Case 18 Reversed] bidirectional_directional_separation
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/case_19_multiple_conflict_windows.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_19_multiple_conflict_windows.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50019 (     unknown): 4 packets, 192 bytes
+       80 (        HTTP): 4 packets, 192 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 19 Normal] multiple_conflict_windows
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/rev_case_19_multiple_conflict_windows.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_19_multiple_conflict_windows.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50019 (     unknown): 4 packets, 192 bytes
+       80 (        HTTP): 4 packets, 192 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 19 Reversed] multiple_conflict_windows
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/case_20_pure_ack_empty_payloads.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_20_pure_ack_empty_payloads.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50020 (     unknown): 4 packets, 170 bytes
+       80 (        HTTP): 4 packets, 170 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 20 Normal] pure_ack_empty_payloads
+[+] Parsed 4 packets from /tmp/tmpocmg3idi/rev_case_20_pure_ack_empty_payloads.pcap
+[+] Extracted 4 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_20_pure_ack_empty_payloads.pcap
+  Total Packets: 4
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 4
+
+  --- Top Ports ---
+    50020 (     unknown): 4 packets, 170 bytes
+       80 (        HTTP): 4 packets, 170 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 4 packets
+                10.0.0.2: 4 packets
+============================================================
+[OK] [Case 20 Reversed] pure_ack_empty_payloads
+[+] Parsed 3 packets from /tmp/tmpocmg3idi/case_21_wrap_around_conflicts_padding.pcap
+[+] Extracted 3 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_21_wrap_around_conflicts_padding.pcap
+  Total Packets: 3
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 3
+
+  --- Top Ports ---
+    50021 (     unknown): 3 packets, 132 bytes
+       80 (        HTTP): 3 packets, 132 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 3 packets
+                10.0.0.2: 3 packets
+============================================================
+[OK] [Case 21 Normal] wrap_around_conflicts_padding
+[+] Parsed 3 packets from /tmp/tmpocmg3idi/rev_case_21_wrap_around_conflicts_padding.pcap
+[+] Extracted 3 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_21_wrap_around_conflicts_padding.pcap
+  Total Packets: 3
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 3
+
+  --- Top Ports ---
+    50021 (     unknown): 3 packets, 132 bytes
+       80 (        HTTP): 3 packets, 132 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 3 packets
+                10.0.0.2: 3 packets
+============================================================
+[OK] [Case 21 Reversed] wrap_around_conflicts_padding
+[+] Parsed 6 packets from /tmp/tmpocmg3idi/case_22_generational_isolation_identical_isn.pcap
+[+] Extracted 6 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_22_generational_isolation_identical_isn.pcap
+  Total Packets: 6
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 6
+
+  --- Top Ports ---
+    50022 (     unknown): 6 packets, 260 bytes
+       80 (        HTTP): 6 packets, 260 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 6 packets
+                10.0.0.2: 6 packets
+============================================================
+[OK] [Case 22 Normal] generational_isolation_identical_isn
+[+] Parsed 6 packets from /tmp/tmpocmg3idi/rev_case_22_generational_isolation_identical_isn.pcap
+[+] Extracted 6 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_22_generational_isolation_identical_isn.pcap
+  Total Packets: 6
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 6
+
+  --- Top Ports ---
+    50022 (     unknown): 6 packets, 260 bytes
+       80 (        HTTP): 6 packets, 260 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 6 packets
+                10.0.0.2: 6 packets
+============================================================
+[OK] [Case 22 Reversed] generational_isolation_identical_isn
+[+] Parsed 5 packets from /tmp/tmpocmg3idi/case_23_gap_filling_with_conflict.pcap
+[+] Extracted 5 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_23_gap_filling_with_conflict.pcap
+  Total Packets: 5
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 5
+
+  --- Top Ports ---
+    50023 (     unknown): 5 packets, 224 bytes
+       80 (        HTTP): 5 packets, 224 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 5 packets
+                10.0.0.2: 5 packets
+============================================================
+[OK] [Case 23 Normal] gap_filling_with_conflict
+[+] Parsed 5 packets from /tmp/tmpocmg3idi/rev_case_23_gap_filling_with_conflict.pcap
+[+] Extracted 5 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_23_gap_filling_with_conflict.pcap
+  Total Packets: 5
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 5
+
+  --- Top Ports ---
+    50023 (     unknown): 5 packets, 224 bytes
+       80 (        HTTP): 5 packets, 224 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 5 packets
+                10.0.0.2: 5 packets
+============================================================
+[OK] [Case 23 Reversed] gap_filling_with_conflict
+[+] Parsed 51 packets from /tmp/tmpocmg3idi/case_24_multi_packet_continuous_wrap_around.pcap
+[+] Extracted 51 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/case_24_multi_packet_continuous_wrap_around.pcap
+  Total Packets: 51
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 51
+
+  --- Top Ports ---
+    50024 (     unknown): 51 packets, 2,490 bytes
+       80 (        HTTP): 51 packets, 2,490 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 51 packets
+                10.0.0.2: 51 packets
+============================================================
+[OK] [Case 24 Normal] multi_packet_continuous_wrap_around
+[+] Parsed 51 packets from /tmp/tmpocmg3idi/rev_case_24_multi_packet_continuous_wrap_around.pcap
+[+] Extracted 51 IP packets
+[*] Running network forensics analysis...
+[*] Reconstructing flows...
+[*] Analyzing protocols...
+[*] Extracting IoCs...
+[*] Building summary...
+[*] Reconstructing TCP evidence...
+
+============================================================
+  D4 — Network Forensics Suite — Analysis Report
+============================================================
+  File: /tmp/tmpocmg3idi/rev_case_24_multi_packet_continuous_wrap_around.pcap
+  Total Packets: 51
+  Total Flows: 1
+
+  --- Protocol Distribution ---
+           TCP: 51
+
+  --- Top Ports ---
+    50024 (     unknown): 51 packets, 2,490 bytes
+       80 (        HTTP): 51 packets, 2,490 bytes
+
+  --- Top Talkers ---
+                10.0.0.1: 51 packets
+                10.0.0.2: 51 packets
+============================================================
+[OK] [Case 24 Reversed] multi_packet_continuous_wrap_around
+
+============================================================
+[+] SUCCESS: 48/48 condition checks passed successfully.
+============================================================
+[+] PASS: All 48 TCP evidence condition checks and upstream regression tests passed successfully.

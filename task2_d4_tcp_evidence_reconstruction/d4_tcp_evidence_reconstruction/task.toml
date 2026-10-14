@@ -1,0 +1,26 @@
+version = "1.0"
+artifacts = ["/workspace/d4-net-forensics"]
+
+[task]
+name = "zjjyyds/d4_tcp_evidence_reconstruction"
+description = "Reconstruct TCP stream byte evidence under forensic consistency constraints in D4 Network Forensics Suite."
+authors = [{ name = "zjjyyds", email = "1311340974@qq.com" }]
+keywords = ["network-forensics", "tcp", "pcap", "evidence-reconstruction", "python"]
+
+[metadata]
+name = "d4_tcp_evidence_reconstruction"
+author_name = "zjjyyds"
+author_email = "1311340974@qq.com"
+category = "security"
+difficulty = "hard"
+tags = ["network-forensics", "tcp", "pcap", "evidence-reconstruction", "python"]
+
+[verifier]
+timeout_sec = 600.0
+environment_mode = "separate"
+
+[agent]
+timeout_sec = 3600.0
+
+[environment]
+build_timeout_sec = 600.0

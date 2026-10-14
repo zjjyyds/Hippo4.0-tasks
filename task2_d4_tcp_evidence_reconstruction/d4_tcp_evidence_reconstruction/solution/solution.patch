@@ -1,0 +1,210 @@
+diff --git a/firmware/net_forensics.py b/firmware/net_forensics.py
+index 51255d8..0c79fd9 100644
+--- a/firmware/net_forensics.py
++++ b/firmware/net_forensics.py
+@@ -563,6 +563,183 @@ class IoCExtractor:
+                 })
+ 
+ 
++
++class TCPEvidenceReconstructor:
++    """Reconstruct forensic TCP stream evidence under consistency constraints."""
++
++    def __init__(self, raw_pcap_data: bytes):
++        self.data = raw_pcap_data
++        self.connections = {}
++
++    def reconstruct(self) -> list:
++        if not self.data or len(self.data) < 24:
++            return []
++        magic = struct.unpack_from('<I', self.data, 0)[0]
++        endian = '<' if magic == 0xa1b2c3d4 else '>' if magic == 0xd4c3b2a1 else None
++        if not endian:
++            return []
++
++        offset = 24
++        packets = []
++        while offset < len(self.data) - 16:
++            try:
++                ts_sec, ts_usec, incl_len, orig_len = struct.unpack_from(endian + 'IIII', self.data, offset)
++                offset += 16
++                if incl_len > len(self.data) - offset or incl_len == 0:
++                    break
++                pkt_data = self.data[offset:offset + incl_len]
++                offset += incl_len
++                packets.append((ts_sec + ts_usec / 1e6, pkt_data))
++            except Exception:
++                break
++
++        packets.sort(key=lambda x: x[0])
++
++        for ts, frame in packets:
++            if len(frame) < 14:
++                continue
++            eth_type = struct.unpack_from('>H', frame, 12)[0]
++            if eth_type != 0x0800:
++                continue
++            ip_data = frame[14:]
++            if len(ip_data) < 20:
++                continue
++            version = (ip_data[0] >> 4) & 0xF
++            if version != 4:
++                continue
++            ihl = (ip_data[0] & 0xF) * 4
++            protocol = ip_data[9]
++            if protocol != 6:
++                continue
++            total_len = struct.unpack_from('>H', ip_data, 2)[0]
++
++            ip_true = ip_data[:total_len]
++            tcp_data = ip_true[ihl:]
++            if len(tcp_data) < 20:
++                continue
++
++            src_ip = '.'.join(str(b) for b in ip_data[12:16])
++            dst_ip = '.'.join(str(b) for b in ip_data[16:20])
++            sport, dport, seq, ack, data_offset_res, flags = struct.unpack_from('>HHIIBB', tcp_data, 0)
++            tcp_hdr_len = ((data_offset_res >> 4) & 0xF) * 4
++            payload = tcp_data[tcp_hdr_len:] if len(tcp_data) >= tcp_hdr_len else b''
++
++            is_syn = bool(flags & 0x02)
++            is_fin = bool(flags & 0x01)
++            is_rst = bool(flags & 0x04)
++
++            conn_key = (src_ip, sport, dst_ip, dport)
++            if conn_key not in self.connections:
++                self.connections[conn_key] = []
++
++            gens = self.connections[conn_key]
++            if not gens:
++                gens.append({
++                    'generation': 0,
++                    'isn': seq if is_syn else None,
++                    'payload_start': (seq + 1) & 0xFFFFFFFF if is_syn else None,
++                    'closed': is_fin or is_rst,
++                    'observed': {}
++                })
++                gen = gens[0]
++            else:
++                curr_gen = gens[-1]
++                if curr_gen['closed'] or (is_syn and curr_gen['isn'] is not None and not (curr_gen['isn'] == seq and len(payload) == 0)):
++                    new_gen_idx = len(gens)
++                    gens.append({
++                        'generation': new_gen_idx,
++                        'isn': seq if is_syn else None,
++                        'payload_start': (seq + 1) & 0xFFFFFFFF if is_syn else None,
++                        'closed': is_fin or is_rst,
++                        'observed': {}
++                    })
++                    gen = gens[-1]
++                else:
++                    gen = curr_gen
++                    if is_syn and gen['isn'] is None:
++                        gen['isn'] = seq
++                        gen['payload_start'] = (seq + 1) & 0xFFFFFFFF
++                    if is_fin or is_rst:
++                        gen['closed'] = True
++
++            if payload:
++                if gen['payload_start'] is None:
++                    gen['payload_start'] = seq
++                start_seq = gen['payload_start']
++                rel_offset = (seq - start_seq) & 0xFFFFFFFF
++                if rel_offset >= 0x80000000:
++                    rel_offset -= 0x100000000
++                for i, b in enumerate(payload):
++                    b_offset = rel_offset + i
++                    if b_offset >= 0:
++                        if b_offset not in gen['observed']:
++                            gen['observed'][b_offset] = []
++                        gen['observed'][b_offset].append(b)
++
++        evidence_list = []
++        for (src_ip, sport, dst_ip, dport), gens in self.connections.items():
++            for gen in gens:
++                observed = gen['observed']
++                if not observed:
++                    continue
++                max_offset = max(observed.keys())
++                total_observed_bytes = max_offset + 1
++
++                confirmed_chars = []
++                conflicts = []
++                gaps = []
++                unambiguous_count = 0
++
++                in_gap = False
++                gap_start = 0
++                for off in range(total_observed_bytes):
++                    if off not in observed:
++                        confirmed_chars.append('?')
++                        if not in_gap:
++                            in_gap = True
++                            gap_start = off
++                    else:
++                        if in_gap:
++                            in_gap = False
++                            gaps.append([gap_start, off])
++                        unique_bytes = sorted(list(set(observed[off])))
++                        if len(unique_bytes) == 1:
++                            confirmed_chars.append(chr(unique_bytes[0]))
++                            unambiguous_count += 1
++                        else:
++                            confirmed_chars.append('?')
++                            conflicts.append({
++                                'offset': off,
++                                'observed': [chr(x) for x in unique_bytes]
++                            })
++                if in_gap:
++                    gaps.append([gap_start, total_observed_bytes])
++
++                evidence_list.append({
++                    'connection': {
++                        'src_ip': src_ip,
++                        'sport': sport,
++                        'dst_ip': dst_ip,
++                        'dport': dport
++                    },
++                    'generation': gen['generation'],
++                    'confirmed': ''.join(confirmed_chars),
++                    'gaps': gaps,
++                    'conflicts': conflicts,
++                    'total_observed_bytes': total_observed_bytes,
++                    'unambiguous_bytes': unambiguous_count
++                })
++
++        evidence_list.sort(key=lambda x: (
++            x['connection']['src_ip'],
++            x['connection']['sport'],
++            x['connection']['dst_ip'],
++            x['connection']['dport'],
++            x['generation']
++        ))
++        return evidence_list
++
++
+ class NetworkForensics:
+     """Main network forensics engine combining all components."""
+ 
+@@ -613,7 +790,13 @@ class NetworkForensics:
+         self.iocs = ioc_extractor.extract()
+ 
+         print("[*] Building summary...")
++        print("[*] Reconstructing TCP evidence...")
++        raw_data = self.parser.data if self.parser and self.parser.data else (open(self.pcap_path, "rb").read() if os.path.exists(self.pcap_path) else b"")
++        reconstructor = TCPEvidenceReconstructor(raw_data)
++        self.tcp_evidence = reconstructor.reconstruct()
++
+         result = self._build_summary()
++        result["tcp_evidence"] = self.tcp_evidence
+         self._print_summary(result)
+         return result
+ 
+@@ -636,6 +819,7 @@ class NetworkForensics:
+             "iocs": self.iocs,
+             "top_talkers": ip_counter.most_common(20),
+             "timestamp_range": self._get_time_range(),
++            "tcp_evidence": getattr(self, "tcp_evidence", []),
+         }
+ 
+     def _get_time_range(self) -> dict:
