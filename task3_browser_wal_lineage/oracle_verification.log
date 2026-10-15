@@ -1,0 +1,31 @@
+
+running 75 tests
+...........................................................................
+test result: ok. 75 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+[case 01] PASS
+[case 02] PASS
+[case 03] PASS
+[case 04] PASS
+[case 05] PASS
+[case 06] PASS
+[case 07] PASS
+[case 08] PASS
+[case 09] PASS
+[case 10] PASS
+[case 11] PASS
+[case 12] PASS
+[case 13] PASS
+[case 14] PASS
+[case 15] PASS
+[case 16] PASS
+[case 17] PASS
+[case 18] PASS
+[case 19] PASS
+[case 20] PASS
+[case 21] PASS
+[case 22] PASS
+[case 23] PASS
+[case 24] PASS
+Summary: 24/24 verified
+[PASS] committed physical evidence verified
