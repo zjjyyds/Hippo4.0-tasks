@@ -16,5 +16,9 @@ Agent 可阅读固定上游关于只读 SQLite 证据的现有实现，研究 SQ
 
 **主要验收红线**：不检查 Agent 的工具、命令、代码组织、算法实现或结束时机；测试参考结果不打入 Agent 镜像。不利用隐藏的非标准 WAL 规则制造不可推断的失败。
 
-## 4. 当前运行证据
-Python 3 标准库原生 `sqlite3` 可复现 24 个随机化案例，并计算独立期望；尚未完成 Docker/Cargo Oracle 和模型五轮，因此不提供虚假的 Reward、平均轮数或 pass@5。
+## 4. 当前运行证据（2026-10-15）
+- 随机化 24 例：Python 生成与参考解析可复现；3 × 24 个场景经原生 SQLite 恢复交叉检查。
+- `oracle_verification.log`：已提交的外部环境 Oracle 运行记录，24/24 私有用例、75/75 Rust 单测通过。
+- `nop_equivalent_verification.log`：Rust NOP 的等价 `[]` 输出交给实际 Python 验证器验证，6/24、验证器退出 1，预期完整评分 reward=0。
+- 尚未执行真实 Rust NOP / Harbor NOP，不能将等价输出实验称作真实 NOP；五轮 Agent 数据也尚未取得，因此不声明平均轮数、Mean、Pass@5 达标。
+- 不因这些基线记录而更改 Agent 的 `instruction.md` 或私有测试。

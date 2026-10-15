@@ -1,0 +1,17 @@
+# Task 3: NOP-equivalent verifier check (not a compiled Harbor NOP)
+Date: 2026-10-15
+Target: SecurityRonin/browser-forensic @ 10e2f70bd53d50144edcff849749efd0095c9a03
+Verifier: task3_browser_wal_lineage/browser_forensic_wal_lineage/tests/verify.py
+
+Candidate behavior: the starter inspect_wal_lineage() is Ok(Vec::new()); its output is JSON [] for every database input.
+Emulation: executed verify.py unchanged with an executable that prints [] and exits 0.
+Actual process under test: the verifier ran the executable with uid 65534 for each randomly generated fixture.
+
+Actual verifier summary: 6/24 verified
+Actual verifier process exit code: 1
+Expected binary all-or-nothing reward from this behavior: 0.0
+
+Randomized fixture inventory per run: 17 valid committed histories, 6 no-history cases, 1 malformed main file expecting an error.
+Four additional deterministic-seed oracle comparisons: 6/24 each, hence reward=0.0 in each.
+
+LIMITATION: No Rust compiler, Docker engine, or Harbor runner was available in this execution environment. This is a behavior-equivalence baseline, NOT a compiled Rust NOP or Harbor NOP run. Oracle's separate previously submitted run is recorded in oracle_verification.log. No five-trial Agent evidence exists here.
