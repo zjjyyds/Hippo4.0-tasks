@@ -34,6 +34,7 @@ class IntegrityTests(unittest.TestCase):
             'kind': 'bmp-fragmented-stream', 'stream_id': 17,
             'carrier_offsets': [4, 100], 'total_payload_size': len(self.payload),
             'expected_payload_sha256': hashlib.sha256(self.payload).hexdigest(),
+            'expected_payload_bytes': len(self.payload),
         }
         self.file_map = [{'id': 'reference-uuid', 'offset': 0, 'name': 'test',
                           'size': 32, 'description': 'known content', 'confidence': 250,
@@ -83,13 +84,14 @@ class IntegrityTests(unittest.TestCase):
         self.assertFalse(self.validate())
 
     def test_unexpected_nested_stream_is_rejected(self):
+        # Top-level scanning only: any nested derived output is out of contract.
         self.entry['nested_derived'] = [copy.deepcopy(self.entry)]
         self.assertFalse(self.validate())
 
-    def test_nested_bytes_are_checked(self):
-        self.expected['expected_nested_derived'] = [copy.deepcopy(self.expected)]
+    def test_nested_output_alone_is_rejected(self):
+        # Even a byte-correct nested tree must be rejected: recursion is out of scope.
         self.entry['nested_derived'] = [copy.deepcopy(self.entry)]
-        self.assertTrue(self.validate())
+        self.assertFalse(self.validate())
         self.entry['nested_derived'][0]['payload'][0] ^= 1
         self.assertFalse(self.validate())
 
@@ -113,7 +115,7 @@ class GeneratorTests(unittest.TestCase):
                 generate_all_cases(root / 'second')
             first = json.loads((root / 'first/cases_manifest.json').read_text())
             second = json.loads((root / 'second/cases_manifest.json').read_text())
-            self.assertEqual(len(first), 24)
+            self.assertEqual(len(first), 29)
             self.assertEqual([c['id'] for c in first], [c['id'] for c in second])
             self.assertEqual(first[0]['expected_streams'][0]['stream_id'], 1 ^ 0x12345678)
             self.assertEqual(second[0]['expected_streams'][0]['stream_id'], 1 ^ 0x87654321)

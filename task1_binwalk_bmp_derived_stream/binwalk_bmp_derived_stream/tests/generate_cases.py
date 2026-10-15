@@ -922,9 +922,111 @@ def generate_all_cases(output_dir):
         "description": "StreamId/CRC/length collision: distinct 1-fragment and 2-fragment sessions coexist"
     })
 
+    # ===== Negative-carrier family: out-of-contract BMP variants must NEVER yield derived output =====
+
+    # CASE 60: negative height (top-down) 24-bit BMP carrying a fully valid DBSF frame.
+    # Top-down carriers are out of contract; the frame must be silently ignored.
+    z60 = build_zip_payload("CASE60_NEGATIVE_HEIGHT_REJECTED")
+    frame60 = build_dbsf_v2_frame(z60, stream_id=601)
+    bits60 = frame_to_bits(frame60)
+    w60, h60 = dims_for_bits(len(bits60))
+    bmp60_topdown = build_bmp(width=w60, height=-h60, bpp=24, bits_to_embed=bits60)
+    p60 = out_path / "case60_negative_height_rejected.bin"
+    p60.write_bytes(os.urandom(32) + bmp60_topdown)
+    manifest.append({
+        "id": "case60_negative_height_rejected",
+        "file": p60.name,
+        "enable_derived": True,
+        "expect_derived": False,
+        "expected_streams": [],
+        "description": "Negative-height (top-down) BMP is out of contract; valid DBSF inside must be ignored"
+    })
+
+    # CASE 61: 16-bit BMP carrying DBSF bits. 16 bpp is out of contract.
+    z61 = build_zip_payload("CASE61_16BPP_REJECTED")
+    frame61 = build_dbsf_v2_frame(z61, stream_id=611)
+    bits61 = frame_to_bits(frame61)
+    w61, h61 = dims_for_bits(len(bits61))
+    # 16bpp: embed one bit per channel via RGB555 LSBs; reuse masks default (0x7C00/0x03E0/0x001F)
+    bmp61_16 = build_bmp(width=w61, height=h61, bpp=16, bits_to_embed=bits61, masks=(0x7C00, 0x03E0, 0x001F))
+    p61 = out_path / "case61_16bpp_rejected.bin"
+    p61.write_bytes(os.urandom(32) + bmp61_16)
+    manifest.append({
+        "id": "case61_16bpp_rejected",
+        "file": p61.name,
+        "enable_derived": True,
+        "expect_derived": False,
+        "expected_streams": [],
+        "description": "16-bit BMP is out of contract; sampled bits must never be interpreted"
+    })
+
+    # CASE 62: 32-bit BMP carrying DBSF bits with randomized alpha LSBs. Out of contract.
+    z62 = build_zip_payload("CASE62_32BPP_REJECTED")
+    frame62 = build_dbsf_v2_frame(z62, stream_id=621)
+    bits62 = frame_to_bits(frame62)
+    w62, h62 = dims_for_bits(len(bits62))
+    bmp62_32 = build_bmp(width=w62, height=h62, bpp=32, bits_to_embed=bits62)
+    p62 = out_path / "case62_32bpp_rejected.bin"
+    p62.write_bytes(os.urandom(32) + bmp62_32)
+    manifest.append({
+        "id": "case62_32bpp_rejected",
+        "file": p62.name,
+        "enable_derived": True,
+        "expect_derived": False,
+        "expected_streams": [],
+        "description": "32-bit BMP is out of contract even with random alpha LSBs"
+    })
+
+    # CASE 63: BITMAPV5HEADER (124-byte DIB) 24-bit BMP carrying a valid frame. Out of contract.
+    z63 = build_zip_payload("CASE63_V5HEADER_REJECTED")
+    frame63 = build_dbsf_v2_frame(z63, stream_id=631)
+    bits63 = frame_to_bits(frame63)
+    w63, h63 = dims_for_bits(len(bits63))
+    bmp63_v5 = build_bmp(width=w63, height=h63, bpp=24, bits_to_embed=bits63, dib_size=124)
+    p63 = out_path / "case63_v5header_rejected.bin"
+    p63.write_bytes(os.urandom(32) + bmp63_v5)
+    manifest.append({
+        "id": "case63_v5header_rejected",
+        "file": p63.name,
+        "enable_derived": True,
+        "expect_derived": False,
+        "expected_streams": [],
+        "description": "BITMAPV5HEADER carriers are out of contract; only 40-byte INFOHEADER qualifies"
+    })
+
+    # CASE 64: nested ghost - a second valid DBSF frame embedded INSIDE a recovered
+    # payload. Top-level scanning only: the inner frame must never yield a stream.
+    z64_outer = build_zip_payload("CASE64_TOPLEVEL_PAYLOAD")
+    z64_inner = build_zip_payload("CASE64_INNER_GHOST_MUST_IGNORE")
+    frame64_inner = build_dbsf_v2_frame(z64_inner, stream_id=642)
+    # Compose outer payload: inner frame bytes planted mid-payload
+    composed64 = z64_outer[:64] + frame64_inner + z64_outer[64:]
+    frame64_outer = build_dbsf_v2_frame(composed64, stream_id=641)
+    bits64 = frame_to_bits(frame64_outer)
+    w64, h64 = dims_for_bits(len(bits64))
+    bmp64 = build_bmp(width=w64, height=h64, bpp=24, bits_to_embed=bits64)
+    p64 = out_path / "case64_nested_ghost_rejected.bin"
+    p64.write_bytes(os.urandom(24) + bmp64)
+    manifest.append({
+        "id": "case64_nested_ghost_rejected",
+        "file": p64.name,
+        "enable_derived": True,
+        "expect_derived": True,
+        "expected_streams": [{
+            "kind": "bmp-fragmented-stream",
+            "stream_id": 641,
+            "carrier_offsets": [24],
+            "total_payload_size": len(composed64),
+            "expected_child_signatures": [{"name": "zip", "offset": 0}],
+            "forbidden_child_signatures": [],
+            "expected_stream_count_exact": 1
+        }],
+        "description": "DBSF frame inside a recovered payload must never produce a second derived stream (top-level only)"
+    })
+
     stream_payloads = {}
     for (sid, fcnt, tlen, tcrc), fdict in _STREAM_FRAGS.items():
-        if 0 < tlen <= 16 * 1024 * 1024 and len(fdict) == fcnt and all(i in fdict for i in range(fcnt)):
+        if len(fdict) == fcnt and all(i in fdict for i in range(fcnt)):
             buf = bytearray(tlen)
             ok = True
             for i in range(fcnt):
@@ -945,6 +1047,7 @@ def generate_all_cases(output_dir):
             raise RuntimeError(f'No complete reference payload for stream {sid}, length {tlen}')
         if raw_payload is not None:
             stream_spec["expected_payload_sha256"] = hashlib.sha256(raw_payload).hexdigest()
+            stream_spec["expected_payload_bytes"] = len(raw_payload)
             for exp_sig in stream_spec.get("expected_child_signatures", []):
                 soff = exp_sig["offset"]
                 sname = exp_sig["name"]

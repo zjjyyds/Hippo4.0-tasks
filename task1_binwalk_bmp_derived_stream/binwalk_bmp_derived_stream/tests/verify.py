@@ -12,9 +12,6 @@ from generate_cases import generate_all_cases
 from sandbox import HarnessSandbox
 
 
-MAX_PAYLOAD_SIZE = 16 * 1024 * 1024
-
-
 def filter_args(case):
     args = []
     for field, flag in (('include', '-y'), ('exclude', '-x')):
@@ -64,8 +61,9 @@ def validate_stream_entry(entry, expected_spec, case_id, scanner, case):
         return False, f'[{case_id}] carrier_offsets must match and be sorted and deduplicated'
 
     raw = entry.get('payload')
+    expected_len = expected_spec.get('expected_payload_bytes', expected_spec['total_payload_size'])
     if (not isinstance(raw, list) or len(raw) != expected_spec['total_payload_size']
-            or not 0 < len(raw) <= MAX_PAYLOAD_SIZE
+            or not 0 < len(raw) <= expected_len
             or any(type(b) is not int or not 0 <= b <= 255 for b in raw)):
         return False, f'[{case_id}] Missing or invalid complete payload byte array'
     payload = bytes(raw)
@@ -103,10 +101,11 @@ def validate_stream_entry(entry, expected_spec, case_id, scanner, case):
         if any(s.get('name') == forbidden for s in child_file_map):
             return False, f'[{case_id}] Forbidden child signature {forbidden}'
 
-    # Empty expected nesting is always checked, including terminal depth 3.
-    return validate_streams(entry.get('nested_derived', []),
-                            expected_spec.get('expected_nested_derived', []),
-                            f'{case_id}::nested', scanner, case)
+    # Top-level derived scanning only: any nested derived output on the child
+    # is out of contract and must be rejected outright.
+    if entry.get('nested_derived'):
+        return False, f'[{case_id}] nested derived streams must not be produced'
+    return True, ''
 
 
 def validate_streams(actual, expected, case_id, scanner, case):

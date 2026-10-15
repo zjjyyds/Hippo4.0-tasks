@@ -2,7 +2,7 @@ diff --git a/src/binwalk.rs b/src/binwalk.rs
 index 1c02eb8..300de65 100644
 --- a/src/binwalk.rs
 +++ b/src/binwalk.rs
-@@ -43,6 +43,9 @@ pub struct AnalysisResults {
+@@ -43,6 +43,9 @@
      /// File extraction results, as returned by Binwalk::extract.
      /// HashMap key is the corresponding SignatureResult.id value in `file_map`.
      pub extractions: HashMap<String, extractors::common::ExtractionResult>,
@@ -12,7 +12,7 @@ index 1c02eb8..300de65 100644
  }
  
  /// Analyze files / memory for file signatures
-@@ -81,6 +84,8 @@ pub struct Binwalk {
+@@ -81,6 +84,8 @@
      pub pattern_signature_table: HashMap<usize, signatures::common::Signature>,
      /// Maps signatures to their corresponding extractors
      pub extractor_lookup_table: HashMap<String, Option<extractors::common::Extractor>>,
@@ -21,7 +21,7 @@ index 1c02eb8..300de65 100644
  }
  
  impl Binwalk {
-@@ -98,6 +103,13 @@ impl Binwalk {
+@@ -98,6 +103,13 @@
      pub fn new() -> Binwalk {
          Binwalk::configure(None, None, None, None, None, false).unwrap()
      }
@@ -35,7 +35,7 @@ index 1c02eb8..300de65 100644
  
      /// Create a new Binwalk instance.
      ///
-@@ -732,6 +744,11 @@ impl Binwalk {
+@@ -732,6 +744,11 @@
          // Scan file data for signatures
          debug!("Analysis start: {file_path}");
          results.file_map = self.scan(file_data);
@@ -47,22 +47,13 @@ index 1c02eb8..300de65 100644
  
          // Only extract if told to, and if there were some signatures found in this file
          if do_extraction && !results.file_map.is_empty() {
-@@ -747,6 +764,44 @@ impl Binwalk {
+@@ -747,6 +764,32 @@
  
          results
      }
 +    /// Scans for supported BMP carriers, reassembles DBSF v2 streams,
-+    /// and recursively analyzes payloads.
++    /// and analyzes recovered payloads with the existing signature engine.
 +    pub fn scan_derived(&self, file_data: &[u8]) -> Vec<crate::derived::DerivedResult> {
-+        self.scan_derived_depth(file_data, 1)
-+    }
-+
-+    fn scan_derived_depth(&self, file_data: &[u8], depth: usize) -> Vec<crate::derived::DerivedResult> {
-+        const MAX_RECURSION_DEPTH: usize = 3;
-+        if depth > MAX_RECURSION_DEPTH {
-+            return Vec::new();
-+        }
-+
 +        let mut derived_results = Vec::new();
 +        let carriers = crate::derived::bmp::find_supported_bmp_carriers(file_data);
 +
@@ -70,11 +61,9 @@ index 1c02eb8..300de65 100644
 +        let reassembled = crate::derived::bmp::reassemble_streams(fragments);
 +
 +        for stream in reassembled {
-+            // Scan recovered payload with Binwalk's signature analysis engine
++            // Scan recovered payload with Binwalk's signature analysis engine.
++            // Top-level scanning only: nested derived streams are out of contract.
 +            let child_file_map = self.scan(&stream.payload);
-+
-+            // Recursively analyze nested derived streams in this payload
-+            let nested_derived = self.scan_derived_depth(&stream.payload, depth + 1);
 +
 +            derived_results.push(crate::derived::DerivedResult {
 +                kind: "bmp-fragmented-stream".to_string(),
@@ -83,7 +72,6 @@ index 1c02eb8..300de65 100644
 +                total_payload_size: stream.payload.len(),
 +                payload: stream.payload,
 +                file_map: child_file_map,
-+                nested_derived,
 +            });
 +        }
 +
@@ -97,7 +85,7 @@ new file mode 100644
 index 0000000..9be35ad
 --- /dev/null
 +++ b/src/derived/bmp.rs
-@@ -0,0 +1,622 @@
+@@ -0,0 +1,562 @@
 +//! DBSF v2 fragmented stream extraction from uncompressed Windows BMP carriers.
 +//!
 +//! Extraction operates over the *logical DBSF bitstream*: the transparent, unaligned
@@ -114,8 +102,6 @@ index 0000000..9be35ad
 +pub const DBSF_V2_MIN_HEADER_SIZE: usize = 44;
 +/// Magic bytes for DBSF v2 (binary, non-textual)
 +pub const DBSF_V2_MAGIC: &[u8; 8] = &[0xB6, 0x5A, 0xE3, 0x81, 0x0C, 0xF4, 0x29, 0xD8];
-+/// Maximum allowed total payload size (16 MiB)
-+pub const MAX_PAYLOAD_SIZE: usize = 16 * 1024 * 1024;
 +/// 64-bit synchronization preamble word
 +pub const PREAMBLE_U64: u64 = u64::from_be_bytes(*DBSF_V2_MAGIC);
 +
@@ -130,12 +116,8 @@ index 0000000..9be35ad
 +    pub bpp: usize,
 +    pub bytes_per_pixel: usize,
 +    pub row_stride: usize,
-+    pub top_down: bool,
 +    pub pixel_array_offset: usize,
 +    pub capacity_bytes: usize,
-+    pub b_shift: u32,
-+    pub g_shift: u32,
-+    pub r_shift: u32,
 +    /// Sampled bits contributed by this carrier to the logical bitstream (width * height * 3)
 +    pub bit_count: usize,
 +}
@@ -198,12 +180,10 @@ index 0000000..9be35ad
 +    if bi_planes != 1 {
 +        return None;
 +    }
-+    let is_valid_compression = match (bi_bit_count, bi_compression) {
-+        (16, 0) | (16, 3) => true,
-+        (24, 0) | (32, 0) => true,
-+        _ => false,
-+    };
-+    if !is_valid_compression {
++    // Contract scope: only 24-bit BI_RGB bottom-up carriers qualify. All other
++    // BMP variants (16/32-bit, top-down/negative height, V4/V5 headers, RLE,
++    // bitfields) are unsupported and must never yield a derived carrier.
++    if bi_bit_count != 24 || bi_compression != 0 || bi_height <= 0 || bi_size != 40 {
 +        return None;
 +    }
 +    if bi_width <= 0 || bi_height == 0 || bi_height == i32::MIN {
@@ -211,8 +191,7 @@ index 0000000..9be35ad
 +    }
 +
 +    let width = bi_width as usize;
-+    let height = bi_height.unsigned_abs() as usize;
-+    let top_down = bi_height < 0;
++    let height = bi_height as usize;
 +    let bytes_per_pixel = bi_bit_count / 8;
 +
 +    let row_stride = (width.checked_mul(bi_bit_count)?)
@@ -230,25 +209,6 @@ index 0000000..9be35ad
 +    let capacity_bits = total_pixels.checked_mul(3)?;
 +    let capacity_bytes = capacity_bits / 8;
 +
-+    let (r_shift, g_shift, b_shift) = if bi_bit_count == 16 && bi_compression == 3 {
-+        let mask_offset = if bi_size >= 52 {
-+            14 + 40
-+        } else {
-+            14 + bi_size
-+        };
-+        let r_mask = u32::from_le_bytes(bmp_data.get(mask_offset..mask_offset + 4)?.try_into().ok()?);
-+        let g_mask = u32::from_le_bytes(bmp_data.get(mask_offset + 4..mask_offset + 8)?.try_into().ok()?);
-+        let b_mask = u32::from_le_bytes(bmp_data.get(mask_offset + 8..mask_offset + 12)?.try_into().ok()?);
-+        if r_mask == 0 || g_mask == 0 || b_mask == 0 {
-+            return None;
-+        }
-+        (r_mask.trailing_zeros(), g_mask.trailing_zeros(), b_mask.trailing_zeros())
-+    } else if bi_bit_count == 16 {
-+        (10, 5, 0)
-+    } else {
-+        (0, 0, 0)
-+    };
-+
 +    Some(BmpCarrierInfo {
 +        offset: carrier_offset,
 +        size: total_size,
@@ -257,12 +217,8 @@ index 0000000..9be35ad
 +        bpp: bi_bit_count,
 +        bytes_per_pixel,
 +        row_stride,
-+        top_down,
 +        pixel_array_offset: pixel_offset,
 +        capacity_bytes,
-+        b_shift,
-+        g_shift,
-+        r_shift,
 +        bit_count: capacity_bits,
 +    })
 +}
@@ -273,13 +229,8 @@ index 0000000..9be35ad
 +    pixel_data: &'a [u8],
 +    width: usize,
 +    height: usize,
-+    bpp: usize,
 +    bytes_per_pixel: usize,
 +    row_stride: usize,
-+    top_down: bool,
-+    b_shift: u32,
-+    g_shift: u32,
-+    r_shift: u32,
 +    curr_y: usize,
 +    curr_x: usize,
 +    curr_channel: usize,
@@ -296,13 +247,8 @@ index 0000000..9be35ad
 +            pixel_data: &bmp_slice[info.pixel_array_offset..],
 +            width: info.width,
 +            height: info.height,
-+            bpp: info.bpp,
 +            bytes_per_pixel: info.bytes_per_pixel,
 +            row_stride: info.row_stride,
-+            top_down: info.top_down,
-+            b_shift: info.b_shift,
-+            g_shift: info.g_shift,
-+            r_shift: info.r_shift,
 +            curr_y: pixel / info.width,
 +            curr_x: pixel % info.width,
 +            curr_channel: start_bit % 3,
@@ -313,29 +259,11 @@ index 0000000..9be35ad
 +        if self.curr_y >= self.height {
 +            return None;
 +        }
-+        let physical_row = if self.top_down {
-+            self.curr_y
-+        } else {
-+            self.height - 1 - self.curr_y
-+        };
++        let physical_row = self.height - 1 - self.curr_y;
 +
 +        let px_offset = physical_row * self.row_stride + self.curr_x * self.bytes_per_pixel;
-+        let bit = if self.bpp == 16 {
-+            let px_bytes: [u8; 2] = [
-+                *self.pixel_data.get(px_offset)?,
-+                *self.pixel_data.get(px_offset + 1)?,
-+            ];
-+            let px = u16::from_le_bytes(px_bytes);
-+            match self.curr_channel {
-+                0 => ((px >> self.b_shift) & 1) as u8,
-+                1 => ((px >> self.g_shift) & 1) as u8,
-+                2 => ((px >> self.r_shift) & 1) as u8,
-+                _ => 0,
-+            }
-+        } else {
-+            let channel_byte = *self.pixel_data.get(px_offset + self.curr_channel)?;
-+            channel_byte & 1
-+        };
++        let channel_byte = *self.pixel_data.get(px_offset + self.curr_channel)?;
++        let bit = channel_byte & 1;
 +
 +        self.curr_channel += 1;
 +        if self.curr_channel == 3 {
@@ -497,7 +425,7 @@ index 0000000..9be35ad
 +        return None;
 +    }
 +    let frag_end = payload_offset.checked_add(fragment_len)?;
-+    if frag_end > total_len || total_len > MAX_PAYLOAD_SIZE {
++    if frag_end > total_len {
 +        return None;
 +    }
 +
@@ -725,7 +653,7 @@ new file mode 100644
 index 0000000..fb801da
 --- /dev/null
 +++ b/src/derived/mod.rs
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,23 @@
 +//! Derived data stream analysis module.
 +
 +use crate::signatures::common::SignatureResult;
@@ -748,15 +676,12 @@ index 0000000..fb801da
 +    pub payload: Vec<u8>,
 +    /// Child file signatures identified inside the reassembled payload
 +    pub file_map: Vec<SignatureResult>,
-+    /// Recursive derived stream analysis results discovered inside this stream's payload
-+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-+    pub nested_derived: Vec<DerivedResult>,
 +}
 diff --git a/src/lib.rs b/src/lib.rs
 index c5151dd..3e2e9fe 100644
 --- a/src/lib.rs
 +++ b/src/lib.rs
-@@ -22,4 +22,6 @@ pub mod extractors;
+@@ -22,4 +22,6 @@
  mod magic;
  pub mod signatures;
  pub mod structures;
@@ -767,7 +692,7 @@ diff --git a/src/main.rs b/src/main.rs
 index 2f5f293..064e0c2 100644
 --- a/src/main.rs
 +++ b/src/main.rs
-@@ -19,6 +19,7 @@ mod json;
+@@ -19,6 +19,7 @@
  mod magic;
  mod signatures;
  mod structures;
