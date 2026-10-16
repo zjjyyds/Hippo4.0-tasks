@@ -36,8 +36,9 @@ jobs:
         run: |
           cargo build --manifest-path task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/harness/Cargo.toml
           set +e
-          sudo python3 -B task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/verify.py \
-            "$GITHUB_WORKSPACE/task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/harness/target/debug/wal_lineage_harness" | tee /tmp/task3-v2-nop.log
+          sudo cp task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/harness/target/debug/wal_lineage_harness /tmp/task3-v2-candidate
+          sudo chmod 755 /tmp/task3-v2-candidate
+          sudo python3 -B task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/verify.py /tmp/task3-v2-candidate | tee /tmp/task3-v2-nop.log
           exitcode="${PIPESTATUS[0]}"
           set -e
           [ "$exitcode" != 0 ]
@@ -51,6 +52,7 @@ jobs:
       - name: Oracle must pass all 32 randomized scenarios
         run: |
           cargo build --manifest-path task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/harness/Cargo.toml
-          sudo python3 -B task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/verify.py \
-            "$GITHUB_WORKSPACE/task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/harness/target/debug/wal_lineage_harness" | tee /tmp/task3-v2-oracle.log
+          sudo cp task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/harness/target/debug/wal_lineage_harness /tmp/task3-v2-candidate
+          sudo chmod 755 /tmp/task3-v2-candidate
+          sudo python3 -B task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/verify.py /tmp/task3-v2-candidate | tee /tmp/task3-v2-oracle.log
           grep -q 'Summary: 32/32 verified' /tmp/task3-v2-oracle.log
