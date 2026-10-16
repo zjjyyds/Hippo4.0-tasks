@@ -2,7 +2,7 @@ name: Hippo Task3 V2 Oracle
 on:
   push:
     paths:
-      - 'task3_browser_wal_lineage_v2/**'
+      - 'task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/**'
       - '.github/workflows/task3_v2_oracle.yml'
   workflow_dispatch:
 
