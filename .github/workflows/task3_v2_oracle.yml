@@ -1,0 +1,56 @@
+name: Hippo Task3 V2 Oracle
+on:
+  push:
+    paths:
+      - 'task3_browser_wal_lineage_v2/**'
+      - '.github/workflows/task3_v2_oracle.yml'
+  workflow_dispatch:
+
+jobs:
+  rust-oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout benchmark
+        uses: actions/checkout@v4
+      - name: Checkout pinned forensic upstream
+        uses: actions/checkout@v4
+        with:
+          repository: SecurityRonin/browser-forensic
+          ref: 10e2f70bd53d50144edcff849749efd0095c9a03
+          path: upstream
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.88.0
+      - name: Prepare upstream checkout and public API
+        run: |
+          sudo mkdir -p /workspace
+          sudo ln -s "$GITHUB_WORKSPACE/upstream" /workspace/browser-forensic
+          python3 task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/environment/starter.py
+      - name: Independent SQLite generator validation
+        run: |
+          cd task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests
+          python3 -B self_test.py
+      - name: Baseline NOP must fail
+        run: |
+          cargo build --manifest-path task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/harness/Cargo.toml
+          set +e
+          sudo python3 -B task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/verify.py \
+            "$GITHUB_WORKSPACE/task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/harness/target/debug/wal_lineage_harness" | tee /tmp/task3-v2-nop.log
+          exitcode="${PIPESTATUS[0]}"
+          set -e
+          [ "$exitcode" != 0 ]
+          grep -q 'Summary: 0/32 verified' /tmp/task3-v2-nop.log
+      - name: Apply Rust reference implementation
+        run: |
+          cp task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/solution/wal_lineage.rs \
+            upstream/crates/browser-forensic-core/src/wal_lineage.rs
+      - name: Run core Rust regressions
+        run: cargo test --manifest-path upstream/Cargo.toml --locked -p browser-forensic-core --lib
+      - name: Oracle must pass all 32 randomized scenarios
+        run: |
+          cargo build --manifest-path task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/harness/Cargo.toml
+          sudo python3 -B task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/verify.py \
+            "$GITHUB_WORKSPACE/task3_browser_wal_lineage_v2/browser_forensic_wal_lineage_v2/tests/harness/target/debug/wal_lineage_harness" | tee /tmp/task3-v2-oracle.log
+          grep -q 'Summary: 32/32 verified' /tmp/task3-v2-oracle.log
