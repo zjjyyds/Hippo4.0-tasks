@@ -1,47 +1,49 @@
-# 第三题 V2：tests分析与Test边界
+# Task 3 V2 — tests分析
 
 ## 1.Instruction和Environment已经提供的信息
 
-- **任务目标与接口（Instruction）：** 在固定版本的 `SecurityRonin/browser-forensic` 中实现 `browser_forensic_core::wal_lineage::inspect_wal_lineage(root: &Path) -> std::io::Result<WalLineageReport>`。环境已提供公开数据类型和可编译的空实现；不限定内部算法或修改方式。
-- **输入（Instruction）：** `root/manifest.json` 的 `captures` 条目包含 `id`、`order`、`db`；条目可以无序，`db` 为相对路径，对应 SQLite 主文件，可带同名 `-wal`。观察点的 `order` 只定义先后顺序，不自动证明取证材料来自同一次连续执行。
-- **每份采集的结果（Instruction）：** `captures` 按 `order` 输出，包含 `id`、`base_sha256`、`commits`、`terminal_sha256`；每次有效 WAL 提交记录包含 `end_frame`、`database_pages` 和完整物理数据库页镜像的 SHA-256。没有有效提交时，终态摘要为主文件摘要。
-- **跨采集关系（Instruction）：** `links` 覆盖每一对按观察顺序排列的采集，按前后采集排序；包含 `from`、`to`、`relation`、`anchors`。关系按照题面给出的证据强度次序选择：`identical_evidence`、`shared_wal_prefix`、`checkpoint_compatible`、`equal_result_only`、`unproven`。`checkpoint_compatible` 的 `anchors` 要列出所有能见证匹配的历史提交帧，其余关系为空列表。关系表示物证的兼容性，不是对现实事件同源性的断言。
-- **边界与兼容性（Instruction）：** 不得把损坏、撕裂、未提交或无法核实的 WAL 数据报告成已提交状态；尾部受损时保留此前可证实的有效提交前缀。缺少 WAL 允许，主文件缺失或无效必须报错；不得修改证据文件；保留 `browser-forensic-core` 原有行为。
-- **环境显性条件（Environment、task.toml）：** 基础工程 checkout 固定到 `10e2f70bd53d50144edcff849749efd0095c9a03`，语言 Rust，已预置 starter API 和上游依赖，运行时离线。Agent、Verifier、Environment Build 的限制分别为 3600、600、600 秒，Verifier 为 `separate` 模式。Agent 可见内容不包含私有标准解法或验证数据。
+**Instruction：**
+- 目标：完成 Rust 公共接口 `browser_forensic_core::wal_lineage::inspect_wal_lineage(root: &Path) -> std::io::Result<WalLineageReport>`。Environment 已提供公开类型和可编译的空实现，不限定求解方法。
+- 输入：`root/manifest.json` 中每项 `captures` 包含 `id`、`order`、相对路径 `db`。清单可乱序，SQLite 主文件可带同名 `-wal` 侧车；`order` 不自动证明真实事件连续。
+- 观察结果：`captures` 按 `order` 返回 `id`、`base_sha256`、`commits`、`terminal_sha256`；每个有效提交包含从 1 开始的 `end_frame`、`database_pages` 及完整物理数据库页镜像的小写 SHA-256；无有效提交时终态为主文件摘要。
+- 证据关系：`links` 涵盖全部有序观察对，按先前与后续观察排序，字段为 `from`、`to`、`relation`、`anchors`。关系依最具体证据选择 `identical_evidence`、`shared_wal_prefix`、`checkpoint_compatible`、`equal_result_only` 或 `unproven`；第三类的 `anchors` 列出全部匹配的先前提交帧，其他关系为空。结果相同不等于证明事件同源。
+- 边界：损坏、撕裂、未提交和不可证实的 WAL 不产生提交；有效提交前缀仍应保留。缺少 WAL 允许；主文件缺失或无效则报错。原物证不得修改，原核心库行为兼容。
+
+**Environment：**
+- 上游为 `SecurityRonin/browser-forensic`，固定提交 `10e2f70bd53d50144edcff849749efd0095c9a03`；`environment/starter.py` 提供上述接口及空实现；依赖在构建阶段准备，执行时离线。
+- `task.toml` 声明 artifacts `/workspace/browser-forensic`、独立 Verifier，以及 Agent / Verifier / Build 的 3600 / 600 / 600 秒限制。
+- Instruction 和 Environment 均未限定内部算法、辅助函数名、代码布局、日志文本或调试过程，私有实现细节不得作为额外的强制 Test 条件。
 
 ## 2.模型的理论通过路径
 
-1. 从题面、starter 公开类型及固定版本的上游工程理解入口、证据文件组织和现有 SQLite 访问能力，确定新增接口与既有 crate 的兼容边界。
-2. 根据 SQLite 主文件和 WAL 的公开持久化格式，自主判断哪些物理记录足以证明一次已提交视图；为每个观察点还原有效历史、完整物理镜像摘要以及终态。对于缺失、损坏或不完整材料，应区分可证明前缀与不可证明尾部。
-3. 在全部观察点的结果基础上推断每一对有序采集之间可由物证支持的最具体关系。既要识别直接的字节证据，也要处理结果相同但关联证据不足的情况；需要检查历史中间提交是否也能提供合法 `anchors`。
-4. 检查有 WAL、无 WAL、边界异常和原有功能回归，确认结果顺序、字段、错误处理和原文件不变性。模型可以自由选择实现、调查和调试方法；题面不要求执行指定测试命令，也不限制采用何种正确的数据结构。
+1. 从公开 API、真实上游工程与 manifest 契约明确多个观察点的读取范围及结果结构。
+2. 依据 SQLite 公开持久化格式，确定各观察点可证明的 WAL 提交状态，恢复对应物理视图及摘要；正确处理无侧车、受损尾部和无效主文件。
+3. 对每个按 `order` 形成的观察对判断最具体的物证关系，区分直接字节证据、已提交历史匹配与仅终态相同，并完整返回适用的历史匹配帧。
+4. 验证 JSON 输出、顺序、错误处理、只读行为和既有库回归。可以采用任意与契约一致的实现方式，不要求执行特定调试流程。
 
-**核心难点：** 单份证据的提交历史可信性、跨观察点的关联证据强度和“同一最终结果不等于同一历史来源”的区分。理论路径不代表标准答案的唯一实现路径。
+上述路径由题面明确的结果定义、公开输入格式和可访问的上游源码支持；难点在于可证实的物理状态与跨观察关系的判断，而非隐藏字段或私有算法猜测。
 
 ## 3.Test检查点的依据
 
-以下检查只验证可观察行为；不按源码结构、辅助函数、特定解析算法、调试顺序或日志文本评分。
+| 实际检查点 | 对应 Instruction / Environment 依据 |
+|---|---|
+| 随机命名与无序 manifest；按 `order` 返回全部观察并保留正确 ID | Instruction 明确 manifest 三字段、条目可乱序及输出顺序 |
+| 每个 `commit` 的帧序号、数据库页数和物理镜像摘要，以及 `base_sha256`、`terminal_sha256` | Instruction 对字段、物理镜像含义、摘要格式及无提交时的终态均有显性要求 |
+| 有效 SQLite 不同页大小和多次真实事务产生的提交历史 | 输入明确为 SQLite 主文件与 WAL；这是正常受支持格式和事务行为，不限定内部解析方法 |
+| 损坏尾部、世代不匹配、无效或未提交的 WAL 不增加伪提交；保留此前有效前缀 | Instruction 对不可证实数据和已验证前缀的直接要求 |
+| 全部有序观察对的 `links`、顺序、`from` 与 `to` | Instruction 明确要求每一对有序观察，不仅相邻观察 |
+| 五类关系的结论与最具体关系优先级 | Instruction 明列五种证据关系及各自成立条件 |
+| `checkpoint_compatible` 列出所有匹配历史帧，包括中间提交；其他关系 `anchors=[]` | Instruction 明确全部匹配帧与非此关系时的空数组要求 |
+| 相同终态但没有更强连续性证据时不错误推断同源；证据不足采用 `unproven` | Instruction 明确将证据兼容性与现实事件身份区分 |
+| 无 WAL 可正常返回，无效 SQLite 主文件需报错 | Instruction 的成功与异常输入边界；只验证错误发生，不指定错误文案 |
+| 运行前后主文件与 WAL 的哈希保持一致 | Instruction 明确取证材料不得改变 |
+| Rust 公共 API 编译及 `browser-forensic-core` 既有单测通过 | 公开的 Environment 接口和 Instruction 的原有行为兼容要求 |
 
-| 核心检查点 | Test 中的验证方式 | 依据 |
-|---|---|---|
-| 输入解析及采集顺序 | 构造多份采集，随机化文件名、标识及 manifest 条目排列；核对输出 `captures` 顺序与 `id` | Instruction 明确 `manifest.json` 格式、相对路径和 `order` 语义 |
-| 主文件与 WAL 提交历史 | 真实 SQLite 生成短事务和多次提交，核对提交帧编号、数据库页数及各次完整物理镜像摘要 | Instruction 的 `commits` 字段与有效提交镜像定义 |
-| 终态与无 WAL 情况 | 校验 `base_sha256`、`terminal_sha256`；包括有效提交及无可用提交的材料 | Instruction 的三个摘要/历史字段及无有效提交时的终态定义 |
-| 损坏数据及前缀保留 | 对残缺尾部、无效提交信息、WAL 世代不匹配等材料检查不会凭空增加已提交视图，且不丢弃更早的有效前缀 | Instruction 明确排除无效/未提交数据并保留可证实前缀；SQLite 文件格式是输入物证的客观语义 |
-| 有序采集对的完整性 | 校验所有前后有序的采集对及 `links` 的排列，不只校验相邻两份 | Instruction 明确“one entry for each ordered pair”及排序要求 |
-| 证据关系与优先级 | 使用相同物证、共享已验证 WAL 前缀、提交镜像与后续主文件匹配、仅终态相同以及证据不足的样本，核对最具体的可证明关系 | Instruction 明列五个关系的定义及优先次序 |
-| `anchors` 的真实性与完整性 | 在 `checkpoint_compatible` 情形核对所有匹配的先前提交帧，包括可能的中间提交；其他关系要求空数组 | Instruction 对匹配提交帧和非该关系的 `anchors` 有显性约束 |
-| 缺失/无效主文件 | 两个异常主文件场景要求接口返回错误；缺少 WAL 不作为错误 | Instruction 明确错误边界 |
-| 只读取证材料 | 执行前后分别哈希每份主文件与存在的 WAL，确认原始字节未改动 | Instruction 明确证据文件必须保持不变 |
-| 原有功能回归与可调用性 | 编译公开 Rust API、调用 harness，并运行上游 `browser-forensic-core` 单元测试 | Instruction 明确原有行为兼容；Environment 公开的 Rust crate 和 starter 接口 |
-| 空实现区分度 | 使用 starter 空实现独立运行评分器，必须不能通过全部场景 | 初始状态必须暴露待实现需求，且 Test 不能让空操作通过的通用验收要求 |
+**测试与判定边界：**
+- `generate_cases.py` 每次生成 32 个随机化案件，来自 4 种 SQLite 页大小与 8 类证据结构，每案含 3～4 份观察。真实 `sqlite3` 事务及 checkpoint 生成物证，再加入受控变化；随机化数据、采集 ID、路径及 manifest 顺序。32 例不是 32 个独立协议知识点。
+- `verify.py` 只比较完整输出、异常行为及原始物证哈希；`test.sh` 编译候选 Rust 接口、运行既有单测并在全体测试通过时给出成功奖励。没有要求固定算法、内部函数、源码文本、调试操作、日志格式或 SQL 行恢复。
+- Python 参考生成预期物理镜像，与 Rust 参考实现独立；`self_test.py` 进一步用真实 SQLite 引擎交叉核对 3 × 32 案件的 348 份采集及 804 个已提交前缀。这验证物理结果，不等于 SQLite 引擎独立裁决了所有跨观察关系。
+- GitHub Actions [Run 38830986366](https://github.com/zjjyyds/Hippo4.0-tasks/actions/runs/38830986366)：Rust starter/NOP 0/32，参考解法 32/32，原核心单测 75/75。它不是 Harbor Docker Oracle；正式 Harbor 闭环仍待执行。
+- 尚无五轮 GPT-5.6 / Opus 试跑证据，不能宣称平均轮数或通过率达标；基础设施故障不得视为模型能力失败。
 
-**测试范围说明：** 32 个随机化案件来自 4 类页大小与 8 类证据构造，每案含 3～4 份采集；随机化数据、标识和部分采集布局。它们不是 32 个完全独立的底层协议原理，也不能把排序变化计为新的专业难点。当前任务仅要求提交历史及证据关系，不要求 SQL 行内容恢复、真实浏览行为归因或文件系统全盘取证，因此未将这些能力纳入强制检查。
-
-## 4.运行与验证证据（补充）
-
-- GitHub Actions Run [38830986366](https://github.com/zjjyyds/Hippo4.0-tasks/actions/runs/38830986366)：使用 Rust 1.88.0 编译真实 starter/harness；NOP **0/32**，参考实现 Oracle **32/32**，上游核心单测 **75/75**。运行摘要见 `oracle_verification.log`。
-- 参考 Python 物理格式分析独立于 Rust 解法；真实 SQLite 引擎对 3 轮 × 32 案件中的 **348 份采集、804 个提交前缀**进行物理状态交叉核验，详见 `sqlite_independent_verification.log`。这些数量代表核验规模，不是独立题型数量。
-- 验证器运行时动态生成证据并核对最终 JSON 与原始证据哈希；私有测试、参考实现和 reward 不提供给 Agent。Agent 仅获得固定上游工程、starter 公开 API 和 `instruction.md`。
-- **尚未完成：** 正式 Harbor Docker Oracle/NOP 环境闭环、五轮 GPT-5.6/Opus 试跑、平均交互轮数和实际通过率。因此不能宣称 80 轮或低通过率已经达标；基础设施失败不计作模型能力失败。
-- 本文档仅是审核说明，不会给 Instruction 或 Environment 增设隐性强制条件，也不替代原始行为测试。
+本分析仅阐明已有题面与环境允许的 Test 依据，不为 Agent 新增强制条件。
