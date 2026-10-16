@@ -1,0 +1,33 @@
+# Task 3 V2 — Rust NOP / Oracle validation (GitHub Actions)
+Validated: 2026-10-16 00:43 UTC
+Repository: zjjyyds/Hippo4.0-tasks
+Upstream: SecurityRonin/browser-forensic @ 10e2f70bd53d50144edcff849749efd0095c9a03
+Run: https://github.com/zjjyyds/Hippo4.0-tasks/actions/runs/38830986366
+Workflow: .github/workflows/task3_v2_oracle.yml
+Runner: GitHub ubuntu-latest, Rust 1.88.0
+
+[Independent SQLite engine check]
+SQLite independent check: 348 evidence captures, 804 commit prefixes, 3 seeds × 32 scenarios
+Status: PASS
+
+[Compiled Rust NOP baseline]
+Rust starter API and harness: compiled successfully
+Summary: 0/32 verified
+Verifier: intentionally nonzero exit (baseline rejection), CI step PASS
+
+[Compiled Rust Oracle reference]
+Rust reference API and harness: compiled successfully
+test result: ok. 75 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+Summary: 32/32 verified
+CI job conclusion: success
+
+This is a genuine GitHub Actions Rust compilation, independent SQLite check, NOP and
+reference Oracle run, not a mere source audit or a Python-only simulation.
+The task's outcome-only instruction, private tests, reference implementation, and
+ZIP were unchanged after CI; only the verifier execution location was adjusted in CI
+so the unprivileged candidate can execute it.
+
+LIMITATIONS:
+- GitHub Actions is not the Harbor Docker environment, so this log does not certify
+  a complete Harbor Docker build.
+- No GPT-5.6/Claude five-trial Agent run was performed; difficulty metrics are unknown.
