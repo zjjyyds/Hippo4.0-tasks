@@ -16,6 +16,7 @@ Python 参考逻辑基于原始物理格式计算提交镜像和证据关系，�
 公开工程只有接口和 stub；`solution` 为 Oracle 参考补丁，`tests` 为私有随机化输入与评分器，容器通过不同路径和权限隔离。验证只比较最终 JSON 和证据文件哈希，不扫描模型源码或规定调试工作流。
 
 ## Baseline / 剩余风险
-- NOP 等价空结果驱动真正 verifier：0/32、非零退出；完整通过制 reward 预期 0。正式编译 Rust starter 和 Harbor NOP 尚未执行。
-- Rust 参考实现、Docker 环境及 Agent 五轮均尚未在本环境完成构建/试跑，不能宣称 Oracle 1.0、平均 80 轮或 Mean≤0.4。
+- GitHub Actions 编译了真实 Rust starter 与测试 harness，实际 NOP 验证器返回 0/32（预期故意失败），独立 CI 步骤通过；见 `oracle_verification.log`。
+- GitHub Actions Run 38830986366 使用 Rust 1.88.0 成功编译参考实现，通过 75/75 上游核心单测与 32/32 多快照用例，CI 全程 success。GitHub Actions 不是 Harbor Docker；完整 Harbor Oracle 尚待该环境复核。
+- 尚未进行五轮强模型试跑，因此平均轮数、Mean 和 Pass@5 均未获实证，不能据此保证难度达标。
 - 额外风险：命题仍依赖公开 SQLite WAL 文件格式，领域冷门并不保证强模型难以完成；须观察第一轮真实解题轨迹再决定是否加难。
