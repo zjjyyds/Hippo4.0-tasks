@@ -19,7 +19,8 @@ V1 的主要难点可收敛为 WAL 帧解析和提交物理镜像重建；强模
 ## 运行/验证状态
 - Python 参考 Oracle + 真实 SQLite 原生恢复交叉检查已完成：3 种随机种子 × 32 场景；348 个有效采集视图，804 个已提交物理镜像前缀全部一致。
 - 使用与 Rust starter 同形态的空 JSON 结构运行**实际 Python `verify.py`**：`0/32`、进程退出码 1，说明等价 NOP 失败。**这不是正式 Harbor Rust NOP 记录。**
-- Rust 标准解法、独立验证器和 Docker 模板已随包提供；**当前执行环境缺 Cargo/Rust/Docker，尚不能宣称标准 Rust 解法编译通过或 Harbor Oracle=1**。
+- **真实 Rust CI 验证已通过**：GitHub Actions Run [38830986366](https://github.com/zjjyyds/Hippo4.0-tasks/actions/runs/38830986366) 在 Rust 1.88.0 下完成源码编译，Rust NOP 0/32，标准解法 Oracle 32/32，上游核心测试 75/75。运行证据在 `oracle_verification.log`。
+- 正式 Harbor Docker 环境尚未验证；不能将 GitHub Actions 通过等同于 Harbor Oracle 1.0。
 - 未运行五次 SOTA Agent，因此尚不能宣称 Mean ≤ 0.4、平均交互 ≥80 或一小时内全部完成。这些必须靠真实 Agent 试跑确认。
 
 ## 难度与耗时
