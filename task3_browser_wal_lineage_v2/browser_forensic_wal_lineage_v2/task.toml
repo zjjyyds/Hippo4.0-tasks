@@ -1,0 +1,26 @@
+version = "1.0"
+artifacts = ["/workspace/browser-forensic"]
+
+[task]
+name = "zjjyyds/browser_forensic_wal_lineage_v2"
+description = "Recover physically grounded committed SQLite states and cross-acquisition evidence relationships."
+authors = [{ name = "zjjyyds", email = "1311340974@qq.com" }]
+keywords = ["forensics", "sqlite", "wal", "rust", "evidence"]
+
+[metadata]
+name = "browser_forensic_wal_lineage_v2"
+author_name = "zjjyyds"
+author_email = "1311340974@qq.com"
+category = "security"
+difficulty = "hard"
+tags = ["forensics", "sqlite", "wal", "rust", "lineage"]
+
+[verifier]
+timeout_sec = 600.0
+environment_mode = "separate"
+
+[agent]
+timeout_sec = 3600.0
+
+[environment]
+build_timeout_sec = 600.0
